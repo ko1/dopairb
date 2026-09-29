@@ -32,7 +32,8 @@ To try it without installing, run `ruby exe/dopairb` in the checkout.
 $ dopairb                 # start it (IRB options are passed through)
 $ dopairb --calm          # quieter: low intensity, no flash, shorter effects
 $ dopairb --max           # everything at maximum; the biggest moments go full screen
-$ dopairb --party         # max + full-screen flash + bell
+$ dopairb --party         # max + full-screen flash + sound effects
+$ dopairb --sound         # synthesized sound effects (--sound=bell for the terminal bell)
 $ dopairb --no-flash      # suppress flashing, available from the very first start
 $ DOPAIRB="intensity=low,flash=off" dopairb
 ```
@@ -61,7 +62,7 @@ dopa flash=off duration=0.5 ...
 | `intensity` | off / low / normal / max | normal | Overall amount. `off` behaves exactly like plain IRB |
 | `motion` | on / off | on | `off` disables animation (badges only) |
 | `flash` | off / soft / full | soft | `soft` flashes only the effect area, `full` inverts the whole screen |
-| `sound` | on / off | off | Terminal bell on big moments |
+| `sound` | off / bell / sfx | off | `sfx` plays synthesized sound effects, `bell` rings the terminal bell on big moments |
 | `hud` | on / off | on | COMBO / SCORE / CHARGE on the right of the prompt line |
 | `duration` | 0.1–5 | 1.0 | Length multiplier for every effect |
 | `color` | auto / truecolor / 256 / 16 / none | auto | `none` when `NO_COLOR` is set |
@@ -107,6 +108,23 @@ When several fire at once, only the biggest plays. The smaller ones are folded i
 | Exit | A result screen that counts up, left behind as a plain table |
 
 Error effects name the kind of error. They never make fun of the failure.
+
+## Sound
+
+With `sound=sfx`, every effect has a sound: key clicks, `NICE!` chimes, a comet ping, a stamp thump, a count-up that ends in a boom, fanfares and explosions for the big moments, a buzz or crack for errors.
+All sounds are synthesized in Ruby at runtime and cached as WAV files in the temp directory. No audio files ship with the gem.
+
+They are played by the first player found:
+
+- `paplay` (PulseAudio, including WSLg on WSL2)
+- `afplay` (macOS)
+- `aplay` (ALSA)
+- `powershell.exe` on WSL without WSLg
+
+Players run as separate processes, so the REPL never waits for them.
+PowerShell takes a few hundred milliseconds to start, so with it only the result effects make sound, not every keystroke.
+When no player is found, `sfx` falls back to the terminal bell on big moments.
+Sound plays on the machine that runs dopairb, so over ssh you will not hear it.
 
 ## Readable, never broken
 

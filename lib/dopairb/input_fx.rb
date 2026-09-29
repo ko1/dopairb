@@ -25,8 +25,9 @@ module Dopairb
 
     attr_reader :game
 
-    def initialize(config, game, clock: -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) }, rng: Random.new)
+    def initialize(config, game, clock: -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) }, rng: Random.new, sound: nil)
       @config = config
+      @sound = sound || ->(name) { Sound.play(name) if @config.sound == :sfx && Sound.fast? }
       @game = game
       @clock = clock
       @rng = rng
@@ -304,7 +305,9 @@ module Dopairb
         @highlights << Highlight.new(off, off + ch.bytesize, t, 0.18, :flash)
       end
       spark(cur_x, t, full? ? 4 : 1)
+      sfx(@game.typing_combo >= 20 ? :key_hot : :key)
       if resumed == :resume
+        sfx(:charge)
         pop("CHARGE!", cur_x - 3, t, Color::FIRE, life: 0.7, rise: true, prio: 3)
         @parts.burst(cur_x, 0.0, 26, at: t, speed: 34, life: 0.55, palette: Color::FIRE, gravity: 10) if full?
       elsif recovering
@@ -328,6 +331,7 @@ module Dopairb
           @highlights << Highlight.new(off, off + 1, t, 0.6, :pair)
           @highlights.reject! { |h| h.kind == :flash }
           pop("NICE!", cur_x - 3, t, Color::GOLD, life: 0.6, rise: true, prio: 2)
+          sfx(:nice)
           @parts.burst(cur_x - 1, 0.0, 12, at: t, speed: 26, life: 0.4, palette: Color::GOLD, gravity: 8) if full?
         elsif (range = match_string(tokens, off))
           @game.key(:string)
@@ -340,6 +344,7 @@ module Dopairb
           @game.key(:block)
           @highlights << Highlight.new(start, off + 1, t, 0.55, :range)
           pop("SEALED!", cur_x - 4, t, Color::NEON, life: 0.7, rise: true, prio: 2)
+          sfx(:sealed)
           @parts.burst(cur_x - 2, 0.0, 16, at: t, speed: 30, life: 0.5, palette: Color::NEON, gravity: 8) if full?
         end
       end
@@ -413,6 +418,7 @@ module Dopairb
       @last_kind = :delete
       @highlights.clear
       return unless lively?
+      sfx(:delete)
       glyph = removed.gsub(/\s/, "").chars.last || "."
       glyph = "." unless Term.char_width(glyph) == 1
       @parts.add(cur_x, 0.0, (@rng.rand - 0.5) * 6, 3, at: t, life: 0.45, palette: [[255, 255, 255], [255, 120, 120], [120, 40, 40]], glyph: glyph, gravity: 16)
@@ -443,6 +449,7 @@ module Dopairb
       @highlights.clear
       @highlights << Highlight.new(0, new.bytesize, t, 0.35, :reveal) if new.size < 4000
       pop("<< REWIND", cur_x - 10, t, Color::ICE, life: 0.5)
+      sfx(:rewind)
     end
 
     def completed(off, added, cur_x, t)
@@ -452,6 +459,7 @@ module Dopairb
       @highlights.reject! { |h| h.kind == :flash }
       @highlights << Highlight.new(off, off + added.bytesize, t, 0.5, :lock)
       @inline = Popup.new("<< LOCK ON", cur_x + 1, t, 0.6 * @config.duration, Color::ICE, false, 2)
+      sfx(:lock)
       @parts.burst(cur_x, 0.2, 10, at: t, speed: 28, life: 0.3, palette: Color::ICE, gravity: 0) if full?
     end
 
@@ -461,6 +469,12 @@ module Dopairb
       @game.key(:paste)
       @last_kind = :paste
       pop("PASTE x#{n}", (cur_x || 0) - 6, t, Color::NEON, life: 0.8, rise: true) if lively?
+    end
+
+    def sfx(name)
+      @sound.call(name)
+    rescue StandardError => e
+      Dopairb.debug(e)
     end
 
     def spark(cur_x, t, n)

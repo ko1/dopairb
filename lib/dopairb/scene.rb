@@ -72,6 +72,9 @@ module Dopairb
     def trail = nil
     def shake(_t) = 0
     def flash_at = nil
+    # Sound patch name and when (scene time) its impact should be heard.
+    def sfx = nil
+    def impact_at = flash_at || 0.0
 
     # Wind-up before the main animation (input row glow); 0 when not wanted.
     def pre = top? ? ctx.pre.to_f : 0.0

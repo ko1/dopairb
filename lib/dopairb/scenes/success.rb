@@ -6,6 +6,8 @@ module Dopairb
     class Hit < Scene
       def top? = !ctx.input.nil?
       def length = 0.42
+      def sfx = :hit
+      def impact_at = 0.16
 
       def setup
         @target = [[@w - 30, 34].min, 8].max
@@ -46,6 +48,8 @@ module Dopairb
     class Puff < Scene
       def top? = !ctx.input.nil?
       def length = 0.5
+      def sfx = :puff
+      def impact_at = 0.12
 
       def setup
         @parts = Fx::Particles.new(@rng)
@@ -71,6 +75,7 @@ module Dopairb
 
     # true / false: an ink stamp slams down.
     class Stamp < Scene
+      def sfx = :stamp
       def height = 3
       def length = 0.6
       def top? = !ctx.input.nil?
@@ -112,6 +117,7 @@ module Dopairb
 
     # Integers that deserve it: count up in giant digits, then a shockwave.
     class Counter < Scene
+      def sfx = :counter
       def big? = true
       def top? = !ctx.input.nil?
       def length = 1.0
@@ -184,6 +190,7 @@ module Dopairb
 
     # Long strings: characters pour in while the length counts up.
     class Stream < Scene
+      def sfx = :hit
       def height = 2
       def length = 0.75
       def top? = !ctx.input.nil?
@@ -210,6 +217,7 @@ module Dopairb
 
     # Arrays and hashes: one block per element pops into place.
     class Crate < Scene
+      def sfx = :hit
       def height = 2
       def length = 0.7
       def top? = !ctx.input.nil?
@@ -255,6 +263,7 @@ module Dopairb
 
       def big? = true
       def mega? = @mega
+      def sfx = @mega ? :mega : :banner
       def top? = !ctx.input.nil? && !@alt
       def length = @mega ? 1.9 : 1.05
 
@@ -385,6 +394,7 @@ module Dopairb
 
     # Floods of stdout: digital rain behind a counter.
     class Rain < Scene
+      def sfx = :rain
       def height = 5
       def length = 0.9
       def big? = true

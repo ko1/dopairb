@@ -18,10 +18,10 @@ module Dopairb
         o.on("--intensity=LEVEL", Config::INTENSITIES.map(&:to_s), "off / low / normal (default) / max") { |v| settings << [:intensity, v] }
         o.on("--calm", "low intensity, no flash, shorter effects") { settings.concat([[:intensity, :low], [:flash, :off], [:duration, 0.7]]) }
         o.on("--max", "everything at maximum") { settings << [:intensity, :max] }
-        o.on("--party", "max + full-screen flash + bell") { settings.concat([[:intensity, :max], [:flash, :full], [:sound, true]]) }
+        o.on("--party", "max + full-screen flash + sound effects") { settings.concat([[:intensity, :max], [:flash, :full], [:sound, :sfx]]) }
         o.on("--[no-]flash[=MODE]", "flash: off / soft (default) / full") { |v| settings << [:flash, v.nil? ? :soft : (v == false ? :off : v)] }
         o.on("--[no-]motion", "animations (default on)") { |v| settings << [:motion, v] }
-        o.on("--[no-]sound", "terminal bell on big moments (default off)") { |v| settings << [:sound, v] }
+        o.on("--[no-]sound[=MODE]", "sound: off (default) / bell / sfx") { |v| settings << [:sound, v.nil? ? :sfx : (v == false ? :off : v)] }
         o.on("--[no-]hud", "COMBO / SCORE next to the prompt (default on)") { |v| settings << [:hud, v] }
         o.on("--[no-]keys", "per-keystroke effects (default on)") { |v| settings << [:keys, v] }
         o.on("--[no-]intro", "title animation (default on)") { |v| settings << [:intro, v] }

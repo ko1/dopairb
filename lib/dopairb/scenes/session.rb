@@ -8,6 +8,8 @@ module Dopairb
       TAG = "every keystroke counts."
 
       def big? = true
+      def sfx = :intro
+      def impact_at = 0.2
 
       def setup
         @scale = best_scale(TITLE)
@@ -68,6 +70,7 @@ module Dopairb
     # Session result screen. Leaves a plain text table behind.
     class Outro < Scene
       def big? = true
+      def sfx = :result
 
       def initialize(ctx, stats)
         @stats = stats

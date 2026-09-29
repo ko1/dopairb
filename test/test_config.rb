@@ -7,7 +7,7 @@ class TestConfig < Test::Unit::TestCase
     c = Dopairb::Config.new
     assert_equal :normal, c.intensity
     assert_equal :soft, c.flash
-    assert_equal false, c.sound
+    assert_equal :off, c.sound
     assert_equal 1.0, c.duration
   end
 
@@ -15,7 +15,7 @@ class TestConfig < Test::Unit::TestCase
     c = Dopairb::Config.new.apply_string("intensity=max, flash=off,sound=on duration=0.5 color=256")
     assert_equal :max, c.intensity
     assert_equal :off, c.flash
-    assert_equal true, c.sound
+    assert_equal :sfx, c.sound
     assert_equal 0.5, c.duration
     assert_equal :"256", c.color
   end

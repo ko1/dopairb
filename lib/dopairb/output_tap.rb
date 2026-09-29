@@ -45,8 +45,18 @@ module Dopairb
         nil
       end
 
+      # Our own helper processes (sound players) do not count as output.
+      def quietly
+        prev = Thread.current[:dopairb_quiet]
+        Thread.current[:dopairb_quiet] = true
+        yield
+      ensure
+        Thread.current[:dopairb_quiet] = prev
+      end
+
       # A child process may write straight to the tty: stop decorating.
       def spawned!
+        return if Thread.current[:dopairb_quiet]
         @spawned = true if @counting
         Term::LOCK.synchronize { Term.yield_to_output } if Term.overlay
       end

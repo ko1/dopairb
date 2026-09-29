@@ -7,12 +7,13 @@ module Dopairb
     FLASHES = %i[off soft full].freeze
     COLORS = %i[auto truecolor 256 16 none].freeze
     TRAILS = %i[none big all].freeze
+    SOUNDS = %i[off bell sfx].freeze
 
     DESCRIPTIONS = {
       intensity: "off / low / normal / max  -- overall amount of effects",
       motion: "on / off  -- animations (off = static badges only)",
       flash: "off / soft / full  -- soft = region only, full = whole screen",
-      sound: "on / off  -- terminal bell on big moments",
+      sound: "off / bell / sfx  -- sfx = synthesized effects (paplay/aplay/afplay/WSL), bell = terminal bell",
       hud: "on / off  -- COMBO / SCORE / CHARGE next to the prompt",
       duration: "float multiplier for every effect length (e.g. 0.5, 2)",
       color: "auto / truecolor / 256 / 16 / none",
@@ -28,7 +29,7 @@ module Dopairb
       @intensity = :normal
       @motion = true
       @flash = :soft
-      @sound = false
+      @sound = :off
       @hud = true
       @duration = 1.0
       @color = :auto
@@ -56,7 +57,10 @@ module Dopairb
         v = bool_or_nil(value)
         @color = v.nil? ? enum(value, COLORS, name) : (v ? :auto : :none)
       when :trail then @trail = enum(value, TRAILS, name)
-      when :motion, :sound, :hud, :intro, :keys
+      when :sound
+        v = bool_or_nil(value)
+        @sound = v.nil? ? enum(value, SOUNDS, name) : (v ? :sfx : :off)
+      when :motion, :hud, :intro, :keys
         v = bool_or_nil(value)
         raise ArgumentError, "#{name} expects on/off, got #{value.inspect}" if v.nil?
         instance_variable_set(:"@#{name}", v)

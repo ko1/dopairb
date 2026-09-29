@@ -26,6 +26,7 @@ require_relative "dopairb/scenes/session"
 require_relative "dopairb/director"
 require_relative "dopairb/output_tap"
 require_relative "dopairb/charge_line"
+require_relative "dopairb/sound"
 require_relative "dopairb/input_fx"
 require_relative "dopairb/reline_adapter"
 require_relative "dopairb/irb_adapter"
@@ -81,14 +82,14 @@ module Dopairb
       "normal" => { intensity: :normal },
       "max" => { intensity: :max },
       "calm" => { intensity: :low, flash: :off, duration: 0.7 },
-      "party" => { intensity: :max, flash: :full, sound: true, duration: 1.0 },
+      "party" => { intensity: :max, flash: :full, sound: :sfx, duration: 1.0 },
     }.freeze
 
     HELP = <<~TXT
       dopa                  show settings and session stats
       dopa off|low|normal|max
       dopa calm             low intensity, no flash, shorter
-      dopa party            max intensity, full-screen flash, bell
+      dopa party            max intensity, full-screen flash, sound effects
       dopa demo             play every effect once
       dopa KEY=VALUE ...    change one setting, e.g. `dopa flash=off duration=0.5`
 
@@ -108,6 +109,7 @@ module Dopairb
         Demo.run(self)
       elsif words.size == 1 && PRESETS.key?(words[0])
         PRESETS[words[0]].each { |k, v| config.set(k, v) }
+        Sound.warm_up if config.sound == :sfx
         puts "dopairb: #{words[0]}"
       else
         words.each do |w|
@@ -115,6 +117,7 @@ module Dopairb
           raise ArgumentError, "expected KEY=VALUE, got #{w.inspect}" unless v
           config.set(k, v)
         end
+        Sound.warm_up if config.sound == :sfx
         puts "dopairb: " + words.join(" ")
       end
       nil

@@ -106,8 +106,8 @@ module Dopairb
     def play(scene, force_trail: false)
       animated = @config.motion && scene.ctx.w >= 20 && fits?(scene)
       animated = false if animated && Term.input_pending?
+      sound(scene, animated) unless !animated && @config.motion
       run(scene) if animated
-      Term.bell if @config.sound && scene.bell? && animated
       emit_trail(scene, force_trail)
     rescue Exception => e # rubocop:disable Lint/RescueException
       raise if SystemExit === e || (SignalException === e && !(Interrupt === e))
@@ -115,6 +115,20 @@ module Dopairb
     end
 
     private
+
+    def sound(scene, animated)
+      case @config.sound
+      when :bell
+        Term.bell if scene.bell?
+      when :sfx
+        if Sound.available?
+          delay = animated ? (scene.pre + scene.impact_at) * @config.duration : 0.0
+          Sound.play(scene.sfx, delay: delay) if scene.sfx
+        elsif scene.bell?
+          Term.bell
+        end
+      end
+    end
 
     def event_evals(_event)
       Dopairb.session&.game&.evals.to_i

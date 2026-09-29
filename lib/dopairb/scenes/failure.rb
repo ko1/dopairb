@@ -11,6 +11,7 @@ module Dopairb
 
       def title = "FAILED"
       def palette = Color::BLOOD
+      def sfx = :error
 
       def setup
         @scale = best_scale(title)
@@ -84,6 +85,7 @@ module Dopairb
     # SyntaxError: the input line cracks at the error position.
     class Crack < FailureScene
       def title = "SYNTAX BREAK"
+      def sfx = :crack
 
       def setup
         super
@@ -174,6 +176,8 @@ module Dopairb
     # NoMethodError: the link between receiver and method snaps.
     class Snap < FailureScene
       def title = "NO METHOD"
+      def sfx = :snap
+      def impact_at = 0.28
       def palette = Color::NEON
       def height = 4
       def length = 0.9
@@ -231,6 +235,7 @@ module Dopairb
       def title = event.info[:type] == :argument ? "ARGUMENT CLASH" : "TYPE CLASH"
       def palette = Color::FIRE
       def length = 0.95
+      def sfx = :crack
 
       def setup
         super
@@ -280,6 +285,7 @@ module Dopairb
 
     # Ctrl-C: the collected charge scatters and fades.
     class Scatter < Scene
+      def sfx = :interrupt
       def height = 2
       def length = 0.65
       def big? = true
