@@ -120,7 +120,7 @@ module Dopairb
       @dir ||= File.join(Dir.tmpdir, "dopairb-sfx-#{VERSION}-#{File.mtime(__FILE__).to_i}-#{Process.uid}")
     end
 
-    # => [path, impact offset]
+    # => [path, impact offset, length] (seconds)
     def file(name)
       @files ||= {}
       @files[name] ||= begin
@@ -132,8 +132,14 @@ module Dopairb
           File.binwrite(tmp, wav(samples))
           File.rename(tmp, path)
         end
-        [path, impact]
+        [path, impact, samples.size.fdiv(RATE)]
       end
+    end
+
+    # Seconds from start until the sound has finished, measured from its impact.
+    def tail(name)
+      _, impact, len = file(name)
+      len - impact
     end
 
     def which(cmd)

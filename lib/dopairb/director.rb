@@ -90,7 +90,9 @@ module Dopairb
       return if @config.off?
       c = ctx(input: input, pre: pre)
       c.input = nil if input && input.size + 12 > c.rows
-      play(scene_for(event, c))
+      scene = scene_for(event, c)
+      play(scene)
+      scene
     end
 
     def intro

@@ -36,6 +36,15 @@ module Dopairb
       ]
     end
 
+    # Let the sound ring out so the next one does not step on it.
+    def wait_for_sound(config, scene, t0)
+      return unless config.sound == :sfx && scene&.sfx && Sound.available?
+      ends = (scene.pre + scene.impact_at) * config.duration + Sound.tail(scene.sfx)
+      wait = ends - (Process.clock_gettime(Process::CLOCK_MONOTONIC) - t0)
+      deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + wait
+      sleep 0.02 while Process.clock_gettime(Process::CLOCK_MONOTONIC) < deadline && !Term.input_pending?
+    end
+
     def run(mod)
       d = mod.session&.director || Director.new(mod.config)
       unless mod.active?
@@ -51,9 +60,11 @@ module Dopairb
         if event.kind == :failure && event.info[:type] == :syntax
           event.info[:column] = [code.size, event.info[:column]].min
         end
-        d.play_event(event, input: shot, pre: event.kind == :success ? mod.config.charge : 0)
+        t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        scene = d.play_event(event, input: shot, pre: event.kind == :success ? mod.config.charge : 0)
         Term.write("\e[2m=> (demo)\e[0m\r\n")
-        sleep 0.15
+        wait_for_sound(mod.config, scene, t0)
+        sleep 0.4
       end
       Term.write("\e[0m")
     end
