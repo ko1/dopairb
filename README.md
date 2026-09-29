@@ -131,9 +131,9 @@ IRB を拡張する形で、評価エンジンは持たない。内部実装へ�
 
 ## 性能の目安
 
-ローカル機（16 コア、他ジョブで load average 6–12）での概算。正式なベンチマークではない。
-1 キーの処理（`LineEditor#update` + `render`）は素の IRB 約 4ms に対し dopairb 約 7ms。
-演出が動いている間は 30fps で再描画し、1 フレーム約 1.4ms。
+ローカル機での概算（正式なベンチマークではない）。1 キーの処理（`LineEditor#update` + `render`）は
+素の IRB 約 3ms に対し dopairb 約 5.6ms。30ms 間隔の入力への追従遅れはどちらも 1ms。
+演出が動いている間は最大 30fps で再描画し、1 フレーム約 1ms。
 方法と生データ: `~/ruby/src/trials/2026-09-29-dopairb-key-latency/`
 
 ## 開発
