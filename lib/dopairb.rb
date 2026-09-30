@@ -60,7 +60,11 @@ module Dopairb
       if IrbAdapter.install
         RelineAdapter.install(@session.fx)
         OutputTap.install
-        Sound.warm_up(config.duration) if active?
+        if active?
+          # decided before warming up: the first run shows the loading screen
+          @session.cold_start = Sound.available? && !Sound.ready?(:intro, config.duration)
+          Sound.warm_up(config.duration)
+        end
       else
         warn "dopairb: IRB #{defined?(IRB::VERSION) ? IRB::VERSION : '?'} is not supported; running plain IRB"
       end
@@ -93,6 +97,7 @@ module Dopairb
       dopa calm             low intensity, no flash, shorter
       dopa party            max intensity, full-screen flash, sound effects
       dopa demo             play every effect once
+      dopa loading          show the loading screen
       dopa KEY=VALUE ...    change one setting, e.g. `dopa flash=off duration=0.5`
 
       settings:
@@ -104,11 +109,15 @@ module Dopairb
         s = @session&.game
         puts "dopairb #{VERSION}  (#{active? ? 'active' : 'inactive: not a terminal or intensity=off'})"
         puts config.describe
+        puts "  sound player: #{Sound.backend ? Sound.backend[1].first : '(none; bell only)'}   cache: #{Sound.dir}"
         puts "  session: #{s.evals} evals, #{s.successes} hits, #{s.failures} errors, max combo #{s.max_combo}, score #{Fx.number_with_commas(s.score)}" if s
       elsif words == ["help"]
         puts HELP + config.describe
       elsif words == ["demo"]
         Demo.run(self)
+      elsif words == ["loading"]
+        t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        @session&.director&.loading { Process.clock_gettime(Process::CLOCK_MONOTONIC) - t0 > 2.5 } if active?
       elsif words.size == 1 && PRESETS.key?(words[0])
         PRESETS[words[0]].each { |k, v| config.set(k, v) }
         Sound.warm_up(config.duration) if active?

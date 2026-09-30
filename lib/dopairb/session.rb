@@ -5,6 +5,7 @@ module Dopairb
   # cycle to the director.
   class Session
     attr_reader :config, :game, :director, :fx
+    attr_accessor :cold_start
 
     def initialize(config)
       @config = config
@@ -21,7 +22,8 @@ module Dopairb
     def intro
       return unless active?
       Sound.warm_up(@config.duration)
-      if @config.intro && @config.motion && @config.sound == :sfx && Sound.available? && !Sound.ready?(:intro, @config.duration)
+      cold = @cold_start || (Sound.available? && !Sound.ready?(:intro, @config.duration))
+      if @config.intro && @config.motion && cold
         @director.loading { Sound.ready?(:intro, @config.duration) }
       end
       @director.intro

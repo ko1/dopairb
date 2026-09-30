@@ -52,6 +52,7 @@ dopa                  show settings and session stats
 dopa off|low|normal|max
 dopa calm / dopa party
 dopa demo             play every effect once (does not change your score)
+dopa loading          show the loading screen
 dopa flash=off duration=0.5 ...
 ```
 
@@ -122,7 +123,7 @@ They are played by the first player found:
 - `powershell.exe` on WSL without WSLg
 
 The finale's sound is one track synthesized on the same timeline as the animation (a tick and a rising note per stat row, a drum roll, a boom, a fanfare, fireworks) and stretched with `duration`.
-Sounds are rendered once and reused by later sessions. At startup, a Ractor renders the missing ones in parallel with the REPL, so typing is not slowed down (a thread is used where Ractor is unavailable). The startup sound is rendered first; in the rare case it is not ready when the title is about to play, a loading screen (a cat running along a pastel progress bar) is shown until it is.
+Sounds are rendered once and reused by later sessions. At startup, a Ractor renders the missing ones in parallel with the REPL, so typing is not slowed down (a thread is used where Ractor is unavailable). The startup sound is rendered first. On a start without cached sounds (the first run, or after an upgrade), a loading screen (a cat running along a pastel progress bar) is shown until it is ready. `dopa loading` shows it any time.
 Players run as separate processes, so the REPL never waits for them.
 PowerShell takes a few hundred milliseconds to start, so with it only the result effects make sound, not every keystroke.
 When no player is found, `sfx` falls back to the terminal bell on big moments.
