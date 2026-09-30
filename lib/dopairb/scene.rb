@@ -67,6 +67,8 @@ module Dopairb
     def length = 0.4
     def top? = false
     def big? = false
+    # Played on the alternate screen (full screen, scrollback untouched).
+    def alt? = false
     def mega? = false
     def bell? = mega?
     def trail = nil

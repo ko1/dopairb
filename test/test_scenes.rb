@@ -33,7 +33,7 @@ class TestScenes < Test::Unit::TestCase
     ]
   end
 
-  def check_scene(scene, w)
+  def check_scene(scene, w, step: 0.037)
     top = scene.top? ? scene.ctx.input.size : 0
     t = 0.0
     while t <= scene.total_length + 0.05
@@ -50,7 +50,7 @@ class TestScenes < Test::Unit::TestCase
         assert_only_sgr(l, "#{scene.class} t=#{t}")
         assert_operator Dopairb::Term.str_width(strip_sgr(l)), :<=, w, "#{scene.class} w=#{w} t=#{t}: #{strip_sgr(l).inspect}"
       end
-      t += 0.037
+      t += step
     end
     tr = scene.trail
     tr&.split("\n")&.each { |l| assert_only_sgr(l) }
@@ -78,6 +78,35 @@ class TestScenes < Test::Unit::TestCase
     assert s.mega?
     assert_equal 30, s.height
     check_scene(s, 99)
+  end
+
+  def test_finale
+    stats = { evals: 42, successes: 38, failures: 4, interrupts: 1, max_combo: 12, score: 8_765, keystrokes: 1234,
+              time: 754, comebacks: 2, best_typing: 30 }
+    [[24, 80], [40, 200], [20, 61], [30, 120]].each do |rows, cols|
+      %i[truecolor none].each do |depth|
+        ctx = director.ctx(rows: rows, cols: cols)
+        ctx.depth = depth
+        s = Dopairb::Scenes::Finale.new(ctx, stats)
+        assert s.alt?
+        check_scene(s, cols - 1, step: 0.09)
+      end
+    end
+    s = Dopairb::Scenes::Finale.new(director.ctx(rows: 30, cols: 100), stats)
+    text = strip_sgr(s.trail)
+    assert_match(/SCORE\s+8,765/, text)
+    assert_match(/RANK\s+A\s+COMBO MASTER/, text)
+    assert_match(/TIME\s+12m34s/, text)
+  end
+
+  def test_finale_rank_and_title
+    f = Dopairb::Scenes::Finale
+    assert_equal "S", f.rank_for(score: 20_000)
+    assert_equal "C", f.rank_for(score: 0)
+    assert_equal "COMEBACK KID", f.title_for(comebacks: 3, max_combo: 12)
+    assert_equal "WELL PLAYED", f.title_for({})
+    assert !f.fits?(19, 100)
+    assert !f.fits?(30, 60)
   end
 
   def test_priority

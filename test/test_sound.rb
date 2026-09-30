@@ -23,10 +23,10 @@ class TestSound < Test::Unit::TestCase
       samples, impact = patch.call
       dur = samples.size.fdiv(S::RATE)
       assert_operator dur, :>, 0.01, name
-      assert_operator dur, :<, 2.0, name
+      assert_operator dur, :<, name == :finale ? Dopairb::Scenes::Finale::Timeline.length + 1 : 2.0, name
       assert_operator impact, :<=, dur, name
-      assert_operator samples.map(&:abs).max, :<=, 1.5, name
       wav = S.wav(samples)
+      assert_operator wav.byteslice(44..).unpack("s<*").map(&:abs).max, :<=, 32_000 * 0.9 + 1, "#{name} is normalized"
       riff, size, wave, fmt, _, pcm, ch, rate, _, _, bits, data, dsize = wav.unpack("a4Va4a4VvvVVvva4V")
       assert_equal ["RIFF", "WAVE", "fmt ", 1, 1, S::RATE, 16, "data"], [riff, wave, fmt, pcm, ch, rate, bits, data]
       assert_equal wav.bytesize - 8, size
@@ -83,6 +83,13 @@ class TestSound < Test::Unit::TestCase
       20.times { break if File.exist?(log); sleep 0.05 }
       assert_match(/nice\.wav/, File.read(log))
     end
+  end
+
+  def test_finale_follows_duration
+    _, _, len1 = S.file(:finale, 1.0)
+    _, _, len2 = S.file(:finale, 2.0)
+    # event times stretch, the ring-out after the rank stamp does not
+    assert_in_delta Dopairb::Scenes::Finale::Timeline.rank, len2 - len1, 0.3
   end
 
   def test_input_fx_triggers_key_sounds

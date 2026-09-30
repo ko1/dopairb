@@ -23,6 +23,7 @@ require_relative "dopairb/scene"
 require_relative "dopairb/scenes/success"
 require_relative "dopairb/scenes/failure"
 require_relative "dopairb/scenes/session"
+require_relative "dopairb/scenes/finale"
 require_relative "dopairb/director"
 require_relative "dopairb/output_tap"
 require_relative "dopairb/charge_line"
@@ -109,7 +110,7 @@ module Dopairb
         Demo.run(self)
       elsif words.size == 1 && PRESETS.key?(words[0])
         PRESETS[words[0]].each { |k, v| config.set(k, v) }
-        Sound.warm_up if config.sound == :sfx
+        Sound.warm_up(config.duration) if config.sound == :sfx
         puts "dopairb: #{words[0]}"
       else
         words.each do |w|
@@ -117,7 +118,7 @@ module Dopairb
           raise ArgumentError, "expected KEY=VALUE, got #{w.inspect}" unless v
           config.set(k, v)
         end
-        Sound.warm_up if config.sound == :sfx
+        Sound.warm_up(config.duration) if config.sound == :sfx
         puts "dopairb: " + words.join(" ")
       end
       nil

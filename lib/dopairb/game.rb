@@ -16,7 +16,7 @@ module Dopairb
 
     attr_reader :score, :combo, :max_combo, :evals, :successes, :failures, :interrupts,
                 :charge, :error_streak, :record, :typing_combo, :started_at, :last_key_at,
-                :keystrokes, :best_typing
+                :keystrokes, :best_typing, :comebacks
 
     def initialize(clock: -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) })
       @clock = clock
@@ -38,6 +38,7 @@ module Dopairb
       @same_char = 0
       @typing_points = 0
       @keystrokes = 0
+      @comebacks = 0
     end
 
     def now = @clock.call
@@ -106,7 +107,10 @@ module Dopairb
       @successes += 1
       flags = []
       flags << :first_hit if @successes == 1
-      flags << :comeback if @error_streak > 0
+      if @error_streak > 0
+        flags << :comeback
+        @comebacks += 1
+      end
       streak = @error_streak
       @error_streak = 0
       @combo += 1
@@ -166,7 +170,7 @@ module Dopairb
 
     def stats
       { evals: @evals, successes: @successes, failures: @failures, interrupts: @interrupts,
-        max_combo: @max_combo, score: @score, keystrokes: @keystrokes, best_typing: @best_typing,
+        max_combo: @max_combo, score: @score, comebacks: @comebacks, keystrokes: @keystrokes, best_typing: @best_typing,
         time: elapsed }
     end
 

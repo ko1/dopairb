@@ -105,7 +105,7 @@ When several fire at once, only the biggest plays. The smaller ones are folded i
 | First eval / COMBO 5, 10, 25… / eval count 10, 50, 100… | `FIRST HIT!` / `COMBO 10!` / `100 EVALS` |
 | Numeric record (more than doubled) | `NEW RECORD` |
 | Success right after an error | `FIXED!` (after one error) / `COMEBACK!` (after a streak), both huge |
-| Exit | A result screen that counts up, left behind as a plain table |
+| Exit | A full-screen finale: the title drops, stats slam in one by one, the total score counts up under a drum roll, a rank is stamped (S/A/B/C with a cheerful title), then fireworks. The result is left behind as a plain table |
 
 Error effects name the kind of error. They never make fun of the failure.
 
@@ -121,6 +121,7 @@ They are played by the first player found:
 - `aplay` (ALSA)
 - `powershell.exe` on WSL without WSLg
 
+The finale's sound is one track synthesized on the same timeline as the animation (a tick and a rising note per stat row, a drum roll, a boom, a fanfare, fireworks) and stretched with `duration`.
 Players run as separate processes, so the REPL never waits for them.
 PowerShell takes a few hundred milliseconds to start, so with it only the result effects make sound, not every keystroke.
 When no player is found, `sfx` falls back to the terminal bell on big moments.

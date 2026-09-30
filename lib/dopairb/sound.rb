@@ -59,6 +59,82 @@ module Dopairb
       def arp(freqs, step, **kw)
         freqs.map { |f| tone(f, step, **kw) }.flatten
       end
+
+      # Mix track into buf starting at t seconds (grows buf as needed).
+      def add(buf, t, track, gain = 1.0)
+        o = (t * RATE).round
+        need = o + track.size
+        buf.fill(0.0, buf.size...need) if need > buf.size
+        track.each_with_index { |v, i| buf[o + i] += v * gain }
+        buf
+      end
+
+      # Noise that swells instead of decaying.
+      def riser(dur, vol: 0.3, smooth: 0.3, rng: Random.new(11))
+        n = (dur * RATE).round
+        prev = 0.0
+        Array.new(n) do |i|
+          prev = prev * smooth + (rng.rand * 2 - 1) * (1 - smooth)
+          prev * vol * (i.fdiv(n)**2)
+        end
+      end
+
+      def boom(dur = 0.6, vol: 0.6, low: 80)
+        mix(noise(dur, vol: vol * 0.8, decay: dur / 3.5, smooth: 0.6), tone(low, dur, wave: :sine, vol: vol, slide_to: low / 2.0, decay: dur / 3))
+      end
+    end
+
+    # Session finale, laid out on Scenes::Finale::Timeline; k stretches time.
+    def self.finale(k = 1.0)
+      tl = Scenes::Finale::Timeline
+      s = Synth
+      buf = []
+      rng = Random.new(5)
+      s.add(buf, 0, s.tone(120, tl::DROP * k, wave: :saw, vol: 0.14, slide_to: 700))
+      s.add(buf, 0, s.riser(tl::DROP * k, vol: 0.35))
+      s.add(buf, tl::DROP * k, s.boom(0.6, vol: 0.7))
+      s.add(buf, tl::DROP * k, s.mix(*[523, 659, 784].map { |f| s.tone(f, 0.35, vol: 0.06, decay: 0.15) }))
+      tl::ROWS.times do |i|
+        st = (tl.row_start(i) + tl::SLIDE) * k
+        n = (tl::COUNT * k / 0.03).floor
+        n.times { |j| s.add(buf, st + j * 0.03, s.tone(900 + i * 70 + j * 15, 0.012, vol: 0.08, decay: 0.005)) }
+        f = Scenes::Finale::NOTES[i]
+        land = tl.row_land(i) * k
+        s.add(buf, land, s.tone(f, 0.28, wave: :triangle, vol: 0.22, decay: 0.12))
+        s.add(buf, land, s.tone(f * 2, 0.2, wave: :sine, vol: 0.06, decay: 0.08))
+        s.add(buf, land, s.noise(0.03, vol: 0.12, decay: 0.01, rng: rng))
+      end
+      a = tl.score_start * k
+      b = tl.score_land * k
+      t = a
+      i = 0
+      while t < b - 0.01
+        p = (t - a) / (b - a)
+        s.add(buf, t, s.noise(0.03, vol: 0.12 + 0.4 * p, decay: 0.012, smooth: 0.3, rng: rng))
+        t += 0.045 - 0.02 * p
+        i += 1
+      end
+      s.add(buf, a, s.tone(180, b - a, wave: :saw, vol: 0.08, slide_to: 900))
+      s.add(buf, b, s.boom(0.9, vol: 0.8, low: 70))
+      s.add(buf, b, s.noise(1.1, vol: 0.22, decay: 0.45, smooth: 0.0, rng: rng))
+      s.add(buf, b, s.mix(*[523, 659, 784, 1047].map { |f| s.tone(f, 0.6, wave: :square, vol: 0.05, decay: 0.25) }))
+      r = tl.rank * k
+      s.add(buf, r, s.mix(s.noise(0.05, vol: 0.5, decay: 0.015, rng: rng), s.tone(110, 0.25, wave: :sine, vol: 0.7, slide_to: 55, decay: 0.08)))
+      fan = s.arp([392, 523, 659, 784], 0.09, vol: 0.13, decay: 0.07)
+      s.add(buf, r + 0.06, fan)
+      hold = r + 0.06 + fan.size.fdiv(RATE)
+      [523, 659, 784, 1047].each do |f|
+        s.add(buf, hold, s.tone(f, 1.3, vol: 0.05, vibrato: 0.012, decay: 0.7))
+        s.add(buf, hold, s.tone(f / 2.0, 1.3, wave: :triangle, vol: 0.08, decay: 0.7))
+      end
+      s.add(buf, hold, s.tone(131, 1.2, wave: :triangle, vol: 0.18, decay: 0.6))
+      10.times do |j|
+        at = r + 0.2 + j * 0.13
+        s.add(buf, at - 0.15, s.tone(500 + rng.rand(400), 0.15, wave: :sine, vol: 0.05, slide_to: 1600))
+        s.add(buf, at, s.noise(0.14, vol: 0.4, decay: 0.05, smooth: 0.4, rng: rng))
+        14.times { s.add(buf, at + 0.05 + rng.rand * 0.35, s.noise(0.006, vol: 0.18, decay: 0.003, rng: rng)) }
+      end
+      [buf, 0]
     end
 
     # name => [samples, impact offset in seconds]
@@ -105,6 +181,7 @@ module Dopairb
         [Synth.seq(sweep, chord), 0.3]
       },
       result: -> { [Synth.seq(Synth.arp([784, 988, 1175, 1568], 0.08, wave: :triangle, vol: 0.2, decay: 0.06), Synth.tone(2093, 0.4, wave: :triangle, vol: 0.18, decay: 0.2)), 0] },
+      finale: ->(k = 1.0) { Sound.finale(k) },
     }.freeze
 
     module_function
@@ -121,12 +198,15 @@ module Dopairb
     end
 
     # => [path, impact offset, length] (seconds)
-    def file(name)
+    # Patches taking an argument are rendered per time stretch.
+    def file(name, stretch = 1.0)
+      patch = PATCHES.fetch(name)
+      key = patch.arity.zero? ? name.to_s : "#{name}-#{stretch.round(2)}"
       @files ||= {}
-      @files[name] ||= begin
-        samples, impact = PATCHES.fetch(name).call
+      @files[key] ||= begin
+        samples, impact = patch.arity.zero? ? patch.call : patch.call(stretch.round(2))
         FileUtils.mkdir_p(dir)
-        path = File.join(dir, "#{name}.wav")
+        path = File.join(dir, "#{key}.wav")
         unless File.exist?(path)
           tmp = "#{path}.#{Process.pid}"
           File.binwrite(tmp, wav(samples))
@@ -137,8 +217,8 @@ module Dopairb
     end
 
     # Seconds from start until the sound has finished, measured from its impact.
-    def tail(name)
-      _, impact, len = file(name)
+    def tail(name, stretch = 1.0)
+      _, impact, len = file(name, stretch)
       len - impact
     end
 
@@ -181,7 +261,7 @@ module Dopairb
     @children = []
 
     # Start playing so that the sound's impact lands `delay` seconds from now.
-    def play(name, delay: 0.0)
+    def play(name, delay: 0.0, stretch: 1.0)
       kind, argv = backend
       return false unless kind
       return false if kind == :slow && %i[key key_hot delete].include?(name)
@@ -193,7 +273,7 @@ module Dopairb
       started = now
       Thread.new do
         Thread.current.report_on_exception = false
-        path, impact = file(name)
+        path, impact = file(name, stretch)
         cmd = if kind == :slow
                 win = OutputTap.quietly { IO.popen(["wslpath", "-w", path], &:read) }.strip
                 argv + ["(New-Object Media.SoundPlayer '#{win}').PlaySync()"]
@@ -215,11 +295,11 @@ module Dopairb
     end
 
     # Synthesize everything in the background so the first sound is not late.
-    def warm_up
+    def warm_up(stretch = 1.0)
       return unless available?
       Thread.new do
         Thread.current.report_on_exception = false
-        PATCHES.each_key { |n| file(n) }
+        PATCHES.each_key { |n| file(n, stretch) }
       end
     end
   end

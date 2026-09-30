@@ -102,7 +102,15 @@ module Dopairb
 
     def outro(stats)
       return if @config.off?
-      play(Scenes::Outro.new(ctx, stats), force_trail: true)
+      c = ctx
+      scene = if @config.motion && Scenes::Finale.fits?(c.rows, c.w + 1) && @config.level >= 2
+                Scenes::Finale.new(c, stats)
+              else
+                Scenes::Outro.new(c, stats)
+              end
+      # render the synced track now so it does not start late
+      Sound.file(scene.sfx, @config.duration) if @config.sound == :sfx && scene.sfx && Sound.available?
+      play(scene, force_trail: true)
     end
 
     def play(scene, force_trail: false)
@@ -125,7 +133,7 @@ module Dopairb
       when :sfx
         if Sound.available?
           delay = animated ? (scene.pre + scene.impact_at) * @config.duration : 0.0
-          Sound.play(scene.sfx, delay: delay) if scene.sfx
+          Sound.play(scene.sfx, delay: delay, stretch: @config.duration) if scene.sfx
         elsif scene.bell?
           Term.bell
         end
@@ -142,8 +150,7 @@ module Dopairb
 
     def fits?(scene)
       top = scene.top? ? scene.ctx.input.size : 0
-      alt = scene.is_a?(Scenes::Banner) && scene.height == scene.ctx.rows
-      alt || scene.height + top <= scene.ctx.rows - 1
+      scene.alt? || scene.height + top <= scene.ctx.rows - 1
     end
 
     def emit_trail(scene, force)
@@ -156,7 +163,7 @@ module Dopairb
     end
 
     def run(scene)
-      alt = scene.is_a?(Scenes::Banner) && scene.height == scene.ctx.rows && scene.mega?
+      alt = scene.alt?
       top = !alt && scene.top? ? scene.ctx.input.rows : []
       stage = alt ? AltStage.new(scene.height) : Stage.new(scene.height, top: top)
       depth = scene.depth

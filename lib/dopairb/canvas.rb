@@ -120,45 +120,68 @@ module Dopairb
       @bold[y][x] = bold
     end
 
+    BRAILLE_CHARS = Array.new(256) { |i| (0x2800 + i).chr(Encoding::UTF_8) }.freeze
+
     def render_row(y, depth, shake)
       chs = @ch[y]
+      fgs = @fg[y]
+      bgs = @bg[y]
+      bolds = @bold[y]
+      dots = @dots[y]
+      dotc = @dotc[y]
+      utf8 = Term.utf8?
       last = @w - 1
-      last -= 1 while last >= 0 && chs[last].nil? && @dots[y][last] == 0 && @bg[y][last].nil?
+      last -= 1 while last >= 0 && chs[last].nil? && dots[last] == 0 && bgs[last].nil?
       out = +""
-      cur = nil
-      if shake > 0
-        out << (" " * shake)
-      end
-      start = shake < 0 ? -shake : 0
+      out << (" " * shake) if shake > 0
+      x = shake < 0 ? -shake : 0
       limit = shake > 0 ? [last, @w - 1 - shake].min : last
-      x = start
+      cur = nil
       while x <= limit
         c = chs[x]
         if c == CONT
           x += 1
           next
         end
-        fg = @fg[y][x]
-        bold = @bold[y][x]
+        fg = fgs[x]
+        bg = bgs[x]
+        bold = bolds[x]
         if c.nil?
-          if @dots[y][x] != 0
-            c = Term.utf8? ? (0x2800 + @dots[y][x]).chr(Encoding::UTF_8) : "."
-            fg = @dotc[y][x]
+          d = dots[x]
+          if d != 0
+            c = utf8 ? BRAILLE_CHARS[d] : "."
+            fg = dotc[x]
             bold = false
           else
             c = " "
+            fg = nil
+            bold = false
           end
         end
-        style = [fg, @bg[y][x], bold]
-        if style != cur
-          out << (depth == :none && !bold && @bg[y][x].nil? ? "\e[0m" : Color.sgr(fg, @bg[y][x], bold, depth))
-          cur = style
+        key = style_key(fg, bg, bold)
+        if key != cur
+          out << sgr_for(key, fg, bg, bold, depth)
+          cur = key
         end
         out << c
         x += 1
       end
       out << "\e[0m" if cur
       out
+    end
+
+    def style_key(fg, bg, bold)
+      f = fg ? (fg[0] << 16) | (fg[1] << 8) | fg[2] : 0x1000000
+      b = bg ? (bg[0] << 16) | (bg[1] << 8) | bg[2] : 0x1000000
+      (f << 26) | (b << 1) | (bold ? 1 : 0)
+    end
+
+    SGR_CACHE = Hash.new { |h, d| h[d] = {} }
+
+    def sgr_for(key, fg, bg, bold, depth)
+      cache = SGR_CACHE[depth]
+      cache.clear if cache.size > 50_000
+      cache[key] ||= (depth == :none && !bold && bg.nil? ? "\e[0m" : Color.sgr(fg, bg, bold, depth)).freeze
     end
   end
 end

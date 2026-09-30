@@ -19,7 +19,7 @@ module Dopairb
     end
 
     def intro
-      Sound.warm_up if active? && @config.sound == :sfx
+      Sound.warm_up(@config.duration) if active? && @config.sound == :sfx
       @director.intro if active?
     end
 

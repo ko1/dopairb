@@ -263,6 +263,7 @@ module Dopairb
 
       def big? = true
       def mega? = @mega
+      def alt? = @alt && @mega
       def sfx = @mega ? :mega : :banner
       def top? = !ctx.input.nil? && !@alt
       def length = @mega ? 1.9 : 1.05
