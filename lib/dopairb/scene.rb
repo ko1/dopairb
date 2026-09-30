@@ -81,6 +81,8 @@ module Dopairb
     # Wind-up before the main animation (input row glow); 0 when not wanted.
     def pre = top? ? ctx.pre.to_f : 0.0
     def total_length = pre + length
+    # Scenes that wait on something can end early.
+    def done?(_t) = false
 
     # Top rows (the input) as canvas, or nil to leave them untouched.
     def draw_top(c, t)

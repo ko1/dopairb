@@ -122,6 +122,7 @@ They are played by the first player found:
 - `powershell.exe` on WSL without WSLg
 
 The finale's sound is one track synthesized on the same timeline as the animation (a tick and a rising note per stat row, a drum roll, a boom, a fanfare, fireworks) and stretched with `duration`.
+Sounds are rendered once and reused by later sessions. At startup, a Ractor renders the missing ones in parallel with the REPL, so typing is not slowed down (a thread is used where Ractor is unavailable). The startup sound is rendered first; in the rare case it is not ready when the title is about to play, a loading screen (a cat running along a pastel progress bar) is shown until it is.
 Players run as separate processes, so the REPL never waits for them.
 PowerShell takes a few hundred milliseconds to start, so with it only the result effects make sound, not every keystroke.
 When no player is found, `sfx` falls back to the terminal bell on big moments.

@@ -60,6 +60,7 @@ module Dopairb
       if IrbAdapter.install
         RelineAdapter.install(@session.fx)
         OutputTap.install
+        Sound.warm_up(config.duration) if active?
       else
         warn "dopairb: IRB #{defined?(IRB::VERSION) ? IRB::VERSION : '?'} is not supported; running plain IRB"
       end
@@ -110,7 +111,7 @@ module Dopairb
         Demo.run(self)
       elsif words.size == 1 && PRESETS.key?(words[0])
         PRESETS[words[0]].each { |k, v| config.set(k, v) }
-        Sound.warm_up(config.duration) if config.sound == :sfx
+        Sound.warm_up(config.duration) if active?
         puts "dopairb: #{words[0]}"
       else
         words.each do |w|
@@ -118,7 +119,7 @@ module Dopairb
           raise ArgumentError, "expected KEY=VALUE, got #{w.inspect}" unless v
           config.set(k, v)
         end
-        Sound.warm_up(config.duration) if config.sound == :sfx
+        Sound.warm_up(config.duration) if active?
         puts "dopairb: " + words.join(" ")
       end
       nil

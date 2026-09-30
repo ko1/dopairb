@@ -137,8 +137,8 @@ module Dopairb
       [buf, 0]
     end
 
-    # name => [samples, impact offset in seconds]
-    PATCHES = {
+    # name => [samples, impact offset in seconds]. Shareable so a Ractor can render them.
+    PATCHES = Ractor.make_shareable({
       key: -> { [Synth.tone(1400, 0.022, vol: 0.24, decay: 0.008), 0] },
       key_hot: -> { [Synth.tone(1900, 0.024, vol: 0.24, decay: 0.008), 0] },
       delete: -> { [Synth.mix(Synth.noise(0.04, vol: 0.12, decay: 0.012), Synth.tone(500, 0.05, vol: 0.08, slide_to: 180, wave: :triangle)), 0] },
@@ -182,7 +182,10 @@ module Dopairb
       },
       result: -> { [Synth.seq(Synth.arp([784, 988, 1175, 1568], 0.08, wave: :triangle, vol: 0.2, decay: 0.06), Synth.tone(2093, 0.4, wave: :triangle, vol: 0.18, decay: 0.2)), 0] },
       finale: ->(k = 1.0) { Sound.finale(k) },
-    }.freeze
+    })
+
+    # The startup sound first: the loading screen waits for it.
+    ORDER = [:intro, *(PATCHES.keys - [:intro])].freeze
 
     module_function
 
@@ -198,22 +201,42 @@ module Dopairb
     end
 
     # => [path, impact offset, length] (seconds)
-    # Patches taking an argument are rendered per time stretch.
+    # Patches taking an argument are rendered per time stretch. Rendered
+    # sounds are reused across sessions; the .meta file is written last.
     def file(name, stretch = 1.0)
-      patch = PATCHES.fetch(name)
-      key = patch.arity.zero? ? name.to_s : "#{name}-#{stretch.round(2)}"
+      key = key_for(name, stretch)
       @files ||= {}
-      @files[key] ||= begin
-        samples, impact = patch.arity.zero? ? patch.call : patch.call(stretch.round(2))
-        FileUtils.mkdir_p(dir)
-        path = File.join(dir, "#{key}.wav")
-        unless File.exist?(path)
-          tmp = "#{path}.#{Process.pid}"
-          File.binwrite(tmp, wav(samples))
-          File.rename(tmp, path)
-        end
-        [path, impact, samples.size.fdiv(RATE)]
-      end
+      @files[key] ||= cached(key) || render(name, stretch, key)
+    end
+
+    def key_for(name, stretch)
+      PATCHES.fetch(name).arity.zero? ? name.to_s : "#{name}-#{stretch.round(2)}"
+    end
+
+    def cached(key)
+      path = File.join(dir, "#{key}.wav")
+      impact, len = File.read("#{path}.meta").split.map(&:to_f)
+      [path, impact, len] if len && File.exist?(path)
+    rescue SystemCallError
+      nil
+    end
+
+    # Pure (no module state) so it can run inside a Ractor.
+    def render(name, stretch, key, dir = self.dir)
+      patch = PATCHES.fetch(name)
+      samples, impact = patch.arity.zero? ? patch.call : patch.call(stretch.round(2))
+      FileUtils.mkdir_p(dir) unless Dir.exist?(dir)
+      path = File.join(dir, "#{key}.wav")
+      len = samples.size.fdiv(RATE)
+      atomic_write(path, wav(samples))
+      atomic_write("#{path}.meta", "#{impact} #{len}\n")
+      [path, impact, len]
+    end
+
+    def atomic_write(path, data)
+      tmp = "#{path}.#{Process.pid}.tmp"
+      File.binwrite(tmp, data)
+      File.rename(tmp, path)
     end
 
     # Seconds from start until the sound has finished, measured from its impact.
@@ -294,13 +317,49 @@ module Dopairb
       false
     end
 
-    # Synthesize everything in the background so the first sound is not late.
+    def ready?(name, stretch = 1.0) = !cached(key_for(name, stretch)).nil?
+
+    # Render every missing sound in the background, the startup sound first.
+    # A Ractor runs the synthesis in parallel with the REPL (no GVL contention,
+    # so typing stays smooth); without Ractor support, a thread does it.
     def warm_up(stretch = 1.0)
       return unless available?
+      return @warming if @warming&.alive?
+      missing = ORDER.reject { |n| ready?(n, stretch) }
+      return if missing.empty?
+      FileUtils.mkdir_p(dir)
+      @warming = start_ractor(missing, stretch) || Thread.new do
+        Thread.current.report_on_exception = false
+        missing.each { |n| file(n, stretch) }
+      end
+    rescue StandardError => e
+      Dopairb.debug(e)
+      nil
+    end
+
+    # => a Thread that finishes when the Ractor has rendered everything, or nil
+    def start_ractor(names, stretch)
+      return nil unless defined?(Ractor)
+      args = Ractor.make_shareable([dir.dup, names.map { |n| [n, key_for(n, stretch)] }, stretch.round(2)])
+      prev = Warning[:experimental]
+      Warning[:experimental] = false # "Ractor API is experimental" must not reach the user
+      r = begin
+        Ractor.new(args) do |(d, jobs, k)|
+          jobs.each { |n, key| Sound.render(n, k, key, d) }
+          :done
+        rescue Exception # rubocop:disable Lint/RescueException
+          :failed
+        end
+      ensure
+        Warning[:experimental] = prev
+      end
       Thread.new do
         Thread.current.report_on_exception = false
-        PATCHES.each_key { |n| file(n, stretch) }
+        r.value
       end
+    rescue StandardError => e
+      Dopairb.debug(e)
+      nil
     end
   end
 end

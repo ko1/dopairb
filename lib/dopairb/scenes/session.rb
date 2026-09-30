@@ -147,3 +147,94 @@ module Dopairb
     end
   end
 end
+
+module Dopairb
+  module Scenes
+    # Shown at startup while the startup sound is being synthesized.
+    # A cat runs along a pastel progress bar; LOADING bounces; sparkles pop.
+    class Loading < Scene
+      PASTEL = [[255, 170, 210], [255, 205, 160], [255, 245, 170], [180, 245, 200], [170, 215, 255], [215, 185, 255]].freeze
+      MESSAGES = ["tuning the synthesizer", "polishing sparkles", "charging the combo meter",
+                  "stacking fireworks", "waking up the cat"].freeze
+      MIN = 0.7
+      FINISH = 0.45
+
+      def initialize(ctx, ready)
+        @ready = ready
+        @ready_at = nil
+        super(ctx, nil)
+      end
+
+      def height = 6
+      def length = 8.0 # safety net; normally ends via done?
+
+      def setup
+        @parts = Fx::Particles.new(@rng)
+        @bar_x = 4
+        @bar_w = [[@w - 12, 60].min, 16].max
+      end
+
+      def done?(t)
+        if @ready_at.nil? && t >= MIN && @ready.call
+          @ready_at = t
+          @parts.burst(@bar_x + @bar_w, 3, 40, at: t, speed: 40, life: 0.5, palette: PASTEL, gravity: 10)
+        end
+        @ready_at && t >= @ready_at + FINISH
+      end
+
+      def progress(t)
+        fake = 1 - Math.exp(-t / 0.9) # creeps towards 1, never gets there
+        return 0.9 * fake unless @ready_at
+        0.9 * fake + (1 - 0.9 * fake) * Fx.ease_out((t - @ready_at) / 0.2)
+      end
+
+      def pastel(i, t) = Color.ramp(PASTEL, ((i * 0.13 + t * 0.6) % 1.0))
+
+      def draw(c, t)
+        Fx.sparkles(c, t, 21, 18, palette: PASTEL.reverse)
+        draw_word(c, t)
+        draw_bar(c, t)
+        @parts.draw(c, t)
+        msg = if @ready_at then "ready!  #{Term.glyph('✦', '*')}"
+              else "#{MESSAGES[(t / 0.9).to_i % MESSAGES.size]}#{'.' * ((t * 4).to_i % 4)}"
+              end
+        c.put(@bar_x, 5, msg, @ready_at ? [255, 240, 170] : [200, 190, 230], bold: !@ready_at.nil?)
+      end
+
+      private
+
+      def draw_word(c, t)
+        word = @ready_at ? "READY!" : "LOADING"
+        x = @bar_x
+        word.each_char.with_index do |ch, i|
+          hop = Math.sin(t * 9 - i * 0.7)
+          y = hop > 0.55 ? 0 : 1
+          c.put(x, y, ch, pastel(i, t), bold: true)
+          x += 2
+        end
+      end
+
+      def draw_bar(c, t)
+        p = progress(t)
+        filled = (p * @bar_w).round
+        y = 3
+        @bar_w.times do |i|
+          if i < filled
+            shimmer = ((i - t * 40) % 14).abs < 1.5
+            c.bg(@bar_x + i, y, shimmer ? [255, 255, 255] : pastel(i / 3, t))
+          else
+            c.put(@bar_x + i, y, Term.glyph("⣀", "."), [90, 80, 110])
+          end
+        end
+        run = (t * 10).to_i.even?
+        cat = @ready_at ? "=^o^=" : (run ? "=^.^=" : "=^-^=")
+        bounce = @ready_at && t - @ready_at < 0.25 ? 1 : (run ? 0 : 1)
+        cx = @bar_x + [filled - 2, 0].max
+        c.put(cx, y - 1 - bounce, cat, [255, 220, 235], bold: true)
+        c.put(cx - 2, y - 1, run ? "~" : "'", [255, 190, 220]) if !@ready_at && t % 0.2 < 0.1
+        pct = "#{(p * 100).floor}%"
+        c.put(@bar_x + @bar_w + 2, y, pct, [255, 240, 200], bold: true)
+      end
+    end
+  end
+end

@@ -19,8 +19,12 @@ module Dopairb
     end
 
     def intro
-      Sound.warm_up(@config.duration) if active? && @config.sound == :sfx
-      @director.intro if active?
+      return unless active?
+      Sound.warm_up(@config.duration)
+      if @config.intro && @config.motion && @config.sound == :sfx && Sound.available? && !Sound.ready?(:intro, @config.duration)
+        @director.loading { Sound.ready?(:intro, @config.duration) }
+      end
+      @director.intro
     end
 
     def finish

@@ -92,6 +92,33 @@ class TestSound < Test::Unit::TestCase
     assert_in_delta Dopairb::Scenes::Finale::Timeline.rank, len2 - len1, 0.3
   end
 
+  def test_warm_up_renders_everything_in_the_background_and_reuses_it
+    Dir.mktmpdir do |d|
+      ENV["PATH"] = d
+      fake_bin(d, "aplay")
+      S.reset_backend
+      S.instance_variable_set(:@dir, File.join(d, "sfx"))
+      S.instance_variable_set(:@files, nil)
+      th = S.warm_up(1.0)
+      assert_kind_of Thread, th
+      th.join(30)
+      S::PATCHES.each_key { |n| assert S.cached(S.key_for(n, 1.0)), n.to_s }
+      assert_nil S.warm_up(1.0), "nothing left to render"
+      path, = S.cached(S.key_for(:mega, 1.0))
+      before = File.mtime(path)
+      S.instance_variable_set(:@files, nil)
+      sleep 0.01
+      got, impact, len = S.file(:mega)
+      assert_equal path, got
+      assert_equal before, File.mtime(path), "a cached sound is not re-synthesized"
+      assert_operator len, :>, impact
+    ensure
+      S.instance_variable_set(:@dir, nil)
+      S.instance_variable_set(:@files, nil)
+      S.instance_variable_set(:@warming, nil)
+    end
+  end
+
   def test_input_fx_triggers_key_sounds
     played = []
     cfg = Dopairb::Config.new

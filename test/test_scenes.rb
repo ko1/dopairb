@@ -99,6 +99,19 @@ class TestScenes < Test::Unit::TestCase
     assert_match(/TIME\s+12m34s/, text)
   end
 
+  def test_loading_waits_until_ready
+    [19, 79, 139].each do |w|
+      ready = false
+      ctx = director.ctx(rows: 24, cols: w + 1)
+      s = Dopairb::Scenes::Loading.new(ctx, -> { ready })
+      assert !s.done?(2.0), "not done before ready"
+      ready = true
+      assert !s.done?(2.1), "finishes its READY! animation first"
+      assert s.done?(2.1 + Dopairb::Scenes::Loading::FINISH)
+      check_scene(Dopairb::Scenes::Loading.new(ctx, -> { true }), w, step: 0.1)
+    end
+  end
+
   def test_finale_rank_and_title
     f = Dopairb::Scenes::Finale
     assert_equal "S", f.rank_for(score: 20_000)

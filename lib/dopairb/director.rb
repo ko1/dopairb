@@ -95,6 +95,16 @@ module Dopairb
       scene
     end
 
+    # Cute loading screen until ready.call is true (e.g. the intro sound exists).
+    def loading(&ready)
+      return if @config.off?
+      scene = Scenes::Loading.new(ctx, ready)
+      return unless @config.motion && fits?(scene)
+      run(scene)
+    rescue Exception => e # rubocop:disable Lint/RescueException
+      raise if SystemExit === e || (SignalException === e && !(Interrupt === e))
+    end
+
     def intro
       return if @config.off? || !@config.intro
       play(Scenes::Intro.new(ctx), force_trail: true)
@@ -176,7 +186,7 @@ module Dopairb
           loop do
             break if Term.input_pending? || !stage.open?
             t = (now - t0) / @config.duration
-            break if t >= scene.total_length
+            break if t >= scene.total_length || scene.done?(t)
             lines = []
             unless top.empty?
               tc = Canvas.new(scene.ctx.w, top.size)
