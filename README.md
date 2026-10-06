@@ -42,12 +42,19 @@ $ dopairb --no-flash      # suppress flashing, available from the very first sta
 $ DOPAIRB="intensity=low,flash=off" dopairb
 ```
 
-To enable it in your regular `irb`, add this to `~/.irbrc`:
+To turn your regular `irb` into dopairb, add this to `~/.irbrc`:
 
 ```ruby
-require "dopairb"
-Dopairb.enable            # also e.g. Dopairb.enable(flash: :off, intensity: :low)
+begin
+  require "dopairb"
+  Dopairb.enable          # also e.g. Dopairb.enable(sound: :sfx, intensity: :max)
+rescue LoadError
+  # a Ruby without dopairb keeps plain irb
+end
 ```
+
+The title (and the loading screen on a cold start) plays right before the first prompt, as with the `dopairb` command.
+Sessions opened by `binding.irb` get the effects too; `Dopairb.enable(binding_irb: false)` keeps them plain.
 
 Inside a session, the `dopa` command changes settings:
 
@@ -76,6 +83,7 @@ dopa flash=off duration=0.5 ...
 | `charge` | 0–0.3 s | 0.12 | Wind-up before a fast result lands; 0 disables it |
 | `intro` | on / off | on | Title animation at startup |
 | `keys` | on / off | on | Per-keystroke effects |
+| `binding_irb` | on / off | on | Effects in sessions opened by `binding.irb` too |
 
 ## Effects
 
@@ -195,7 +203,7 @@ The rest is terminal-independent logic:
 - Scores live for the session only and are not saved.
 - Effects use Unicode. Any glyph that is not one column wide is swapped for ASCII or braille at runtime.
 - Start it with the `dopairb` command, or call `Dopairb.enable` in `.irbrc`.
-- IRB sessions entered via `binding.irb` get the same Context hook. The result screen appears only when the outermost session ends.
+- IRB sessions entered via `binding.irb` get the same Context hook (unless `binding_irb=off`; detected with `IRB::Context#from_binding?`). The result screen appears only when the outermost session ends.
 
 ## Performance
 

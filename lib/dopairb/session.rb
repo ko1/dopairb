@@ -15,6 +15,7 @@ module Dopairb
       @director = seed ? Director.new(config, rng: Random.new(seed.to_i + 1)) : Director.new(config)
       @fx = InputFx.new(config, @game)
       @finished = false
+      @introduced = false
       @profile = nil
       @collected = []
     end
@@ -30,10 +31,14 @@ module Dopairb
     end
 
     def active?
-      !@config.off? && Term.interactive?
+      !@config.off? && Term.interactive? && (@config.binding_irb || !IrbAdapter.from_binding?)
     end
 
+    # Once per process: from the dopairb command before IRB starts, or for
+    # `Dopairb.enable` in .irbrc right before the first prompt.
     def intro
+      return if @introduced
+      @introduced = true
       return unless active?
       prof = profile
       grew = prof.visit

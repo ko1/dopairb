@@ -156,4 +156,39 @@ class TestIntegration < Test::Unit::TestCase
     assert_match(/^5050$/, out)
     assert_match(/NameError/, out)
   end
+
+  # Plain `irb` (or a script's binding.irb) with dopairb enabled in .irbrc.
+  def start_irbrc(rc, code: "IRB.start", rows: 30, cols: 100)
+    dir = Dir.mktmpdir("dopairb-rc")
+    @log = File.join(dir, "debug.log")
+    File.write(File.join(dir, "irbrc"), "require 'dopairb'\n#{rc}\n")
+    cmd = [RbConfig.ruby, "-I#{PTYDriver::ROOT}/lib", "-rirb", "-e", code]
+    @d = PTYDriver.new(cmd, rows: rows, cols: cols, env: { "IRBRC" => File.join(dir, "irbrc"), "DOPAIRB_DEBUG" => @log })
+    @d.wait_for(/\(main\):001>/, timeout: 20)
+    @d.settle(quiet: 0.3)
+    @d
+  end
+
+  def test_irbrc_gets_the_intro_and_effects
+    start_irbrc("Dopairb.enable")
+    assert_match(/DOPA IRB #{Regexp.escape(Dopairb::VERSION)}/, @d.all_text, "intro before the first prompt")
+    run_line("(1..100).sum")
+    assert_match(/FIRST HIT!/, @d.all_text)
+    assert_match(/^=> 5050$/, @d.all_text)
+  end
+
+  def test_binding_irb_can_be_left_plain
+    start_irbrc("Dopairb.enable(binding_irb: false)", code: "x = 1; binding.irb")
+    run_line("x + 1")
+    assert_match(/^=> 2$/, @d.all_text)
+    assert_not_match(/DOPA IRB|FIRST HIT/, @d.all_text)
+    assert_not_match(/\e\[38;/, @d.raw.byteslice(-2000..) || @d.raw)
+  end
+
+  def test_binding_irb_gets_effects_by_default
+    start_irbrc("Dopairb.enable", code: "x = 1; binding.irb")
+    run_line("x + 1")
+    assert_match(/FIRST HIT!/, @d.all_text)
+  end
 end
+

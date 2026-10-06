@@ -21,9 +21,10 @@ module Dopairb
       charge: "seconds (max 0.3) of wind-up before a fast result lands; 0 disables",
       intro: "on / off  -- title animation at startup",
       keys: "on / off  -- per-keystroke effects while typing",
+      binding_irb: "on / off  -- effects in sessions opened by binding.irb too",
     }.freeze
 
-    attr_reader :intensity, :motion, :flash, :sound, :hud, :duration, :color, :trail, :charge, :intro, :keys
+    attr_reader :intensity, :motion, :flash, :sound, :hud, :duration, :color, :trail, :charge, :intro, :keys, :binding_irb
 
     def initialize
       @intensity = :normal
@@ -37,6 +38,7 @@ module Dopairb
       @charge = 0.12
       @intro = true
       @keys = true
+      @binding_irb = true
     end
 
     def level
@@ -60,7 +62,7 @@ module Dopairb
       when :sound
         v = bool_or_nil(value)
         @sound = v.nil? ? enum(value, SOUNDS, name) : (v ? :sfx : :off)
-      when :motion, :hud, :intro, :keys
+      when :motion, :hud, :intro, :keys, :binding_irb
         v = bool_or_nil(value)
         raise ArgumentError, "#{name} expects on/off, got #{value.inspect}" if v.nil?
         instance_variable_set(:"@#{name}", v)

@@ -28,6 +28,14 @@ module Dopairb
         @installed = true
       end
 
+      # Is the current session one that binding.irb opened?
+      def from_binding?
+        ctx = IRB.conf[:MAIN_CONTEXT]
+        ctx.respond_to?(:from_binding?) && ctx.from_binding? ? true : false
+      rescue StandardError
+        false
+      end
+
       def expression?(statement)
         defined?(IRB::Statement::Expression) && IRB::Statement::Expression === statement
       end

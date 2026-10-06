@@ -49,6 +49,7 @@ module Dopairb
       # ---- called from hooks ------------------------------------------------
 
       def before_read(core)
+        Dopairb.session&.intro
         wrap_output_modifier(core)
         @editor = core.line_editor
         return unless keys?
