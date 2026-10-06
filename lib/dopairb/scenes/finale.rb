@@ -90,6 +90,8 @@ module Dopairb
         @panel = [@w / 2 + 4, @table_y, 30, 9] if @two_col
         @score_y = @h - 7
         @score = @stats[:score].to_i
+        @new_best = !@stats[:first_session].nil? && !@stats[:first_session] && @score > @stats[:best_before].to_i
+        @xp_y = @big_score ? @h - 2 : @table_y + T::ROWS + 2
         @stars = Array.new(80) { [@rng.rand(@w), @rng.rand(@h), @rng.rand, 0.4 + @rng.rand] }
         build_particles
       end
@@ -144,6 +146,7 @@ module Dopairb
         draw_table(c, t)
         draw_score(c, t)
         draw_rank(c, t)
+        draw_xp(c, t)
         @parts.draw(c, t)
         @fire.draw(c, t)
         draw_footer(c, t)
@@ -156,6 +159,13 @@ module Dopairb
         rows_data.each { |k, v| lines << "#{x}#{k.ljust(12)}#{value_text(k, v).rjust(14)}" }
         lines << paint("#{x}#{'SCORE'.ljust(12)}#{Fx.number_with_commas(@score).rjust(14)}", [255, 220, 130], bold: true)
         lines << paint("#{x}#{'RANK'.ljust(12)}#{@rank.rjust(14)}  #{@title}", Color.ramp(@rpal, 0.2), bold: true)
+        if @stats[:level]
+          up = @stats[:level].to_i - @stats[:level_before].to_i
+          lv = "LV #{@stats[:level]}#{up > 0 ? "  (+#{up})" : ''}"
+          lines << paint("#{x}#{'LEVEL'.ljust(12)}#{lv.rjust(14)}  #{Fx.number_with_commas(@stats[:xp].to_i)} XP", [200, 160, 255], bold: true)
+        end
+        lines << paint("#{x}#{'GALLERY'.ljust(12)}#{"#{@stats[:gallery]}/#{@stats[:gallery_total]}".rjust(14)}", [240, 220, 180]) if @stats[:gallery].to_i > 0
+        lines << paint("#{x}#{star} NEW BEST SCORE! (was #{Fx.number_with_commas(@stats[:best_before].to_i)}) #{star}", [255, 120, 160], bold: true) if @new_best
         lines.join("\n")
       end
 
@@ -222,11 +232,16 @@ module Dopairb
         landed = t >= T.score_land
         val = landed ? @score : (@score * Fx.ease_in(p) ** 0.7).round
         txt = Fx.number_with_commas(val)
+        best = landed && @new_best
         unless @big_score
-          c.put_center(@table_y + T::ROWS + 1, "TOTAL SCORE  #{txt}", landed ? Color.rainbow(t) : [150, 220, 255], bold: true)
+          c.put_center(@table_y + T::ROWS + 1, "TOTAL SCORE  #{txt}#{'  NEW BEST!' if best}", landed ? Color.rainbow(t) : [150, 220, 255], bold: true)
           return
         end
-        c.put_center(@score_y - 1, "T O T A L   S C O R E", [170, 170, 200], bold: true)
+        if best
+          c.put_center(@score_y - 1, "#{Term.glyph('✦', '*')}  N E W   B E S T !  #{Term.glyph('✦', '*')}", Color.rainbow(t * 1.5), bold: true)
+        else
+          c.put_center(@score_y - 1, "T O T A L   S C O R E", [170, 170, 200], bold: true)
+        end
         scale = Font.width(Fx.number_with_commas(@score), scale: 2) <= @w - 4 ? 2 : 1
         scale = 1 if Font.width(txt, scale: scale) > @w - 2
         fn = lambda do |_rx, ry, f|
@@ -267,6 +282,31 @@ module Dopairb
         Fx.big_text(c, @rank, px + (pw - lw) / 2, py + 2, fn, scale: 2)
         n = (@title.size * Fx.phase(t, T.rank + 0.15, T.rank + 0.5)).round
         c.put(px + (pw - @title.size) / 2, py + 7, @title[0, n], Color.ramp(@rpal, 0.1), bold: true)
+      end
+
+      # LV 7 [=========-----] 4,210 / 8,192 XP: fills from the start of the session.
+      def draw_xp(c, t)
+        return unless @stats[:level] && t >= T.rank + 0.3
+        p = Fx.ease_out(Fx.phase(t, T.rank + 0.3, T.rank + 1.2))
+        xp = (@stats[:xp_before].to_i + (@stats[:xp].to_i - @stats[:xp_before].to_i) * p).round
+        lv = Game.level_for(xp)
+        lo = Game.xp_for(lv)
+        hi = Game.xp_for(lv + 1)
+        bar_w = [[@w - 50, 30].min, 10].max
+        fill = ((xp - lo).fdiv(hi - lo) * bar_w).round
+        label = "LV #{lv} "
+        tail = " #{Fx.number_with_commas(xp)} / #{Fx.number_with_commas(hi)} XP"
+        up = lv > @stats[:level_before].to_i
+        tail += "  LEVEL UP!" if up
+        total = label.size + bar_w + tail.size
+        x = (@w - total) / 2
+        c.put(x, @xp_y, label, [210, 170, 255], bold: true)
+        bar_w.times do |i|
+          on = i < fill
+          col = on ? Color.rainbow(i.fdiv(bar_w) - t) : [60, 50, 80]
+          c.put(x + label.size + i, @xp_y, on ? Term.glyph("█", "#") : Term.glyph("░", "."), col)
+        end
+        c.put(x + label.size + bar_w, @xp_y, tail, up && (t * 8).to_i.even? ? [255, 255, 255] : [210, 170, 255], bold: up)
       end
 
       def draw_footer(c, t)

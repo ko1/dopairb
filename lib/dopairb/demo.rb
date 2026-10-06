@@ -7,8 +7,9 @@ module Dopairb
 
     module_function
 
-    def ev(kind, info, flags: [], gain: 120, combo: 3, streak: 0)
-      E.new(kind: kind, tier: nil, info: info, flags: flags, gain: gain, combo: combo, streak: streak, score: 12_480)
+    def ev(kind, info, flags: [], gain: 120, combo: 3, streak: 0, mult: 1, level: 5)
+      E.new(kind: kind, tier: nil, info: info, flags: flags, gain: gain, combo: combo, streak: streak, score: 12_480,
+            mult: mult, level: level)
     end
 
     def cases
@@ -33,6 +34,12 @@ module Dopairb
         ["1 + 1", ev(:success, { type: :integer, value: 2 }, flags: [:comeback], combo: 1, streak: 5, gain: 600)],
         ["loop {}", ev(:interrupt, { charge: 60 })],
         ["2**128", ev(:success, { type: :integer, value: 2**128 }, flags: [:new_record, :record_jump], gain: 420)],
+        ["[3, 1, 2].sort", ev(:success, { type: :array, size: 3 }, flags: [:critical], gain: 960, mult: 8)],
+        ["12.fdiv(5)", ev(:success, { type: :float, value: 2.4 }, flags: [:fever], combo: 12, gain: 1100, mult: 2)],
+        ["21.0 * 2", ev(:success, { type: :float, value: 42.0 }, flags: [:fever, :combo_best], combo: 13, gain: 1200, mult: 2)],
+        ["rand(777)", ev(:success, { type: :integer, value: 777 }, flags: [:jackpot], gain: 6_400, mult: 16)],
+        ["'level' * 2", ev(:success, { type: :string, length: 10, head: "levellevel", art: :great_wave, art_new: true, gallery: [1, 5] },
+                           flags: [:level_up], gain: 200, level: 6)],
       ]
     end
 

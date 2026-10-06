@@ -23,7 +23,10 @@ class TestSound < Test::Unit::TestCase
       samples, impact = patch.call
       dur = samples.size.fdiv(S::RATE)
       assert_operator dur, :>, 0.01, name
-      assert_operator dur, :<, name == :finale ? Dopairb::Scenes::Finale::Timeline.length + 1 : 2.0, name
+      # sounds synced to a long scene may last as long as it
+      limit = { finale: Dopairb::Scenes::Finale::Timeline.length + 1, jackpot: Dopairb::Scenes::Jackpot.allocate.length,
+                levelup: Dopairb::Scenes::Masterpiece.allocate.length }.fetch(name, 2.0)
+      assert_operator dur, :<, limit, name
       assert_operator impact, :<=, dur, name
       wav = S.wav(samples)
       assert_operator wav.byteslice(44..).unpack("s<*").map(&:abs).max, :<=, 32_000 * 0.9 + 1, "#{name} is normalized"

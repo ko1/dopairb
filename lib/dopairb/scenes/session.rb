@@ -7,9 +7,23 @@ module Dopairb
       TITLE = "DOPA IRB"
       TAG = "every keystroke counts."
 
+      def initialize(ctx, career = nil)
+        @career = career
+        super(ctx, nil)
+      end
+
       def big? = true
       def sfx = :intro
       def impact_at = 0.2
+
+      # "LV 5  *  DAY 3 STREAK!" or nil on a fresh profile.
+      def career_line
+        return nil unless @career
+        bits = []
+        bits << "LV #{@career[:level]}" if @career[:level].to_i > 1
+        bits << "DAY #{@career[:streak]} STREAK#{'!' if @career[:streak_up]}" if @career[:streak].to_i >= 2
+        bits.empty? ? nil : bits.join("  #{Term.glyph('✦', '*')}  ")
+      end
 
       def setup
         @scale = best_scale(TITLE)
@@ -55,15 +69,19 @@ module Dopairb
         end
         @parts.draw(c, t)
         Fx.sparkles(c, t, 11, 16, palette: Color::GOLD) if t > 0.7
-        n = (TAG.size * Fx.phase(t, 0.75, 1.1)).round
-        c.put_center(7, TAG[0, n], [230, 230, 240], bold: true) if n > 0
+        tag = [career_line, TAG].compact.join("   ")
+        tag = TAG if tag.size > @w
+        n = (tag.size * Fx.phase(t, 0.75, 1.1)).round
+        c.put_center(7, tag[0, n], [230, 230, 240], bold: true) if n > 0
       end
 
       def trail
         star = Term.glyph("✦", "*")
         title = "#{star} DOPA IRB #{VERSION} #{star}"
         colored = depth == :none ? title : title.each_char.with_index.map { |ch, i| "#{Color.sgr(Color.rainbow(i / 22.0), nil, true, depth)}#{ch}" }.join + "\e[0m"
-        "#{colored}  #{paint("Ruby #{RUBY_VERSION}  --  type `dopa` for effect settings", [150, 150, 165])}"
+        career = career_line
+        career = career ? "#{paint(career, [255, 215, 120], bold: true)}  " : ""
+        "#{colored}  #{career}#{paint("Ruby #{RUBY_VERSION}  --  type `dopa` for effect settings", [150, 150, 165])}"
       end
     end
 

@@ -23,10 +23,12 @@ module Dopairb
         c.put(0, 0, "=>", hot, bold: true)
         if t < 0.16
           head = 3 + (@target - 3) * Fx.ease_in(t / 0.16)
+          fever = event.flag?(:fever)
           9.times do |i|
             x = head - i
             break if x < 3
-            c.put(x, 0, i.zero? ? Term.glyph("✦", "*") : (i < 3 ? "=" : "-"), Color.ramp(pal, i / 9.0), bold: i < 2)
+            col = fever ? Color.rainbow(i / 9.0 - t * 4) : Color.ramp(pal, i / 9.0)
+            c.put(x, 0, i.zero? ? Term.glyph("✦", "*") : (i < 3 ? "=" : "-"), col, bold: i < 2)
           end
         else
           p = Fx.phase(t, 0.16, 0.42)
@@ -34,13 +36,18 @@ module Dopairb
           txt = "+#{Fx.number_with_commas(event.gain)}"
           col = Color.mix([255, 255, 255], Color.ramp(pal, 0.3), p)
           x = c.put(@target + 2, 0, txt, col, bg: p < 0.25 ? Color.ramp(pal, 0.6) : nil, bold: true)
-          c.put(x + 2, 0, "COMBO #{event.combo}", combo_color(t), bold: event.combo >= 5) if event.combo > 1
+          x = c.put(x + 2, 0, "COMBO #{event.combo}", combo_color(t), bold: event.combo >= 5) if event.combo > 1
+          if event.flag?(:fever) && x
+            " FEVER x2 ".each_char.with_index do |ch, i|
+              x = c.put(x + (i.zero? ? 2 : 0), 0, ch, [20, 10, 30], bg: Color.rainbow(i / 10.0 - t * 2), bold: true)
+            end
+          end
         end
       end
 
       def trail
-        paint("=> #{Term.glyph('✦', '*')} +#{Fx.number_with_commas(event.gain)}" + (event.combo > 1 ? "  COMBO #{event.combo}" : ""),
-              combo_color)
+        paint("=> #{Term.glyph('✦', '*')} +#{Fx.number_with_commas(event.gain)}" + (event.combo > 1 ? "  COMBO #{event.combo}" : "") +
+              (event.flag?(:fever) ? "  FEVER x2" : ""), combo_color)
       end
     end
 

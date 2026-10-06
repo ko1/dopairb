@@ -6,7 +6,13 @@ module Dopairb
   class InputFx
     Layout = Struct.new(:cursor_x, :cursor_row, :row_end_x, :last_row, :screen_width, :room_below, keyword_init: true)
 
-    STRIP_ROWS = 2
+    STRIP_ROWS = 3
+    # Typing streaks at powers of two get a big name.
+    STREAK_NAMES = {
+      8 => ["8-BIT", "RUSH!"], 16 => ["16-BIT", "COMBO!"], 32 => ["32-BIT", "BLAZE!!"], 64 => ["64-BIT", "OVERDRIVE!!"],
+      128 => ["128-BIT", "HYPER MODE!!"], 256 => ["0x100", "OVERFLOW!!!"], 512 => ["2^9", "GODSPEED!!!"],
+      1024 => ["1KiB", "TYPING LEGEND!!!"],
+    }.freeze
     OPEN = %i[PARENTHESIS_LEFT PARENTHESIS_LEFT_PARENTHESES BRACKET_LEFT BRACKET_LEFT_ARRAY BRACE_LEFT LAMBDA_BEGIN EMBEXPR_BEGIN].freeze
     CLOSE = %i[PARENTHESIS_RIGHT BRACKET_RIGHT BRACE_RIGHT EMBEXPR_END].freeze
     PAIRS = { "(" => ")", "[" => "]", "{" => "}", '#{' => "}" }.freeze
@@ -22,6 +28,7 @@ module Dopairb
 
     Highlight = Struct.new(:from, :to, :born, :life, :kind)
     Popup = Struct.new(:text, :x, :born, :life, :palette, :rise, :prio)
+    Streak = Struct.new(:n, :x, :born, :life)
 
     attr_reader :game
 
@@ -107,6 +114,7 @@ module Dopairb
       return true if @popups.any? { |p| t - p.born < p.life }
       return true if @inline && t - @inline.born < @inline.life + 0.1
       return true if @inserts.any? { |it| t - it < 0.4 }
+      return true if @streak && t - @streak.born < @streak.life + 0.1
       return true if hl_dirty?(t)
       hud = @config.hud ? hud_key(t) : nil
       if hud != @last_hud
@@ -126,6 +134,7 @@ module Dopairb
 
     def reset_line
       @inline = nil
+      @streak = nil
       @highlights.clear
       @inserts.clear
       @popups.clear
@@ -146,6 +155,11 @@ module Dopairb
       gauge_on = Color.mix([80, 110, 170], Color.ramp(Color::FIRE, 0.35), heat)
       c = Canvas.new(Term.str_width(text), 1)
       c.put(0, 0, text, fg, bg: bg, bold: heat > 0.5)
+      if (f = text.index("FEVER!"))
+        "FEVER!".each_char.with_index do |ch, i|
+          c.put(f + i, 0, ch, [20, 10, 30], bg: Color.rainbow(i / 6.0 - t * 2), bold: true)
+        end
+      end
       g = text.index("[")
       if g
         cells = 8
@@ -158,7 +172,7 @@ module Dopairb
     end
 
     def hud_key(t)
-      [hud_text(200, t), (@game.heat(t) * 12).round, (@game.charge / Game::CHARGE_MAX * 8).round]
+      [hud_text(200, t), (@game.heat(t) * 12).round, (@game.charge / Game::CHARGE_MAX * 8).round, @game.fever? ? (t * 15).to_i : 0]
     end
 
     def trail_render(lay, t = now)
@@ -204,9 +218,14 @@ module Dopairb
       return nil unless lively?
       @popups.reject! { |p| t - p.born > p.life }
       @parts.prune(t)
-      return nil if @popups.empty? && @parts.empty?
+      @streak = nil if @streak && t - @streak.born > @streak.life
+      return nil if @popups.empty? && @parts.empty? && @streak.nil?
       w = lay.screen_width - 1
       c = Canvas.new(w, STRIP_ROWS)
+      if @streak && draw_streak(c, w, t)
+        @parts.draw(c, t)
+        return c.render(depth)
+      end
       @parts.draw(c, t)
       @popups.each do |p|
         age = (t - p.born) / p.life
@@ -255,9 +274,11 @@ module Dopairb
       score = Fx.number_with_commas(@game.score)
       mult = @game.multiplier(t)
       m = mult > 1.04 ? format(" x%.1f", mult) : ""
-      full = " COMBO #{format('%02d', @game.combo)}  SCORE #{score}  [#{' ' * 8}]#{m} "
+      fever = @game.fever? ? " FEVER!" : ""
+      lv = @game.leveling? ? " LV#{@game.level} " : ""
+      full = "#{fever}#{lv} COMBO #{format('%02d', @game.combo)}  SCORE #{score}  [#{' ' * 8}]#{m} "
       return full if Term.str_width(full) <= space
-      short = " C#{format('%02d', @game.combo)} #{score} "
+      short = "#{fever} C#{format('%02d', @game.combo)} #{score} "
       Term.str_width(short) <= space ? short : nil
     end
 
@@ -313,10 +334,15 @@ module Dopairb
       elsif recovering
         pop("RECOVERY", cur_x - 4, t, Color::TOXIC, life: 0.55)
       end
-      streak = @game.typing_combo
-      if [20, 50, 100, 200].include?(streak)
-        pop("STREAK #{streak}!", cur_x - 5, t, streak >= 100 ? Color::NEON : Color::GOLD, life: 0.9, rise: true, prio: 3)
-        @parts.burst(cur_x, 0.5, 30, at: t, speed: 40, life: 0.6, palette: Color::GOLD, gravity: 12) if full?
+      if Array === resumed && resumed[0] == :streak
+        n = resumed[1]
+        sfx(:bits)
+        if full?
+          @streak = Streak.new(n, cur_x, t, 1.3 * @config.duration)
+          @parts.burst(cur_x, 1.0, 40, at: t, speed: 46, life: 0.6, palette: n >= 64 ? Color::NEON : Color::GOLD, gravity: 12)
+        else
+          pop("#{STREAK_NAMES[n]&.join(' ') || "STREAK #{n}"}", cur_x - 5, t, Color::GOLD, life: 0.9, rise: true, prio: 3)
+        end
       end
       syntax_moment(ch, off, new, cur_x, t)
     end
@@ -469,6 +495,34 @@ module Dopairb
       @game.key(:paste)
       @last_kind = :paste
       pop("PASTE x#{n}", (cur_x || 0) - 6, t, Color::NEON, life: 0.8, rise: true) if lively?
+    end
+
+    # Big "64-BIT OVERDRIVE!!" in the strip. False when it cannot be drawn big.
+    def draw_streak(c, w, t)
+      s = @streak
+      big, tag = STREAK_NAMES[s.n] || [s.n.to_s, "STREAK!"]
+      bw = Font.width(big)
+      sub = "TYPING x#{s.n}  +#{s.n * 4}"
+      total = bw + 2 + [tag.size, sub.size].max
+      return false if total > w
+      age = (t - s.born) / s.life
+      x = (s.x - total / 2).clamp(0, w - total)
+      slide = ((1 - Fx.ease_out(age / 0.12)) * 12).round
+      c.tint_bg([255, 255, 255], 0.6 * (1 - age / 0.1), [x - 1, 0].max, 0, total + 2, STRIP_ROWS) if age < 0.1 && @config.flash != :off
+      pal = s.n >= 64 ? Color::NEON : Color::GOLD
+      sweep = (age * 3) % 1.4 - 0.2
+      drawn = Fx.half_text(c, big, x + slide, 0, lambda { |_cx, _r, f|
+        base = s.n >= 128 ? Color.rainbow(f - t * 2) : Color.ramp(pal, 0.1 + f * 0.3)
+        (f - sweep).abs < 0.08 ? [255, 255, 255] : base
+      })
+      return false unless drawn
+      tx = x + bw + 2 + slide
+      tag.each_char.with_index do |ch, i|
+        col = (t * 16 + i).to_i.even? ? [255, 255, 255] : Color.rainbow(i / 10.0 - t)
+        c.put(tx + i, 0, ch, age > 0.7 ? Color.ramp(pal, age) : col, bold: true)
+      end
+      c.put(tx, 2, sub, Color.ramp(pal, 0.2 + age * 0.5), bold: age < 0.6)
+      true
     end
 
     def sfx(name)

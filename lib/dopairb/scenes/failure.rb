@@ -64,6 +64,7 @@ module Dopairb
         bits = [event.info[:class_name]]
         bits << "x#{event.streak} in a row" if event.streak > 1
         bits << "combo reset (#{event.info[:broken_combo]})" if event.info[:broken_combo].to_i >= 3
+        bits << "FEVER over" if event.flag?(:fever_end)
         bits.join("   ")
       end
 

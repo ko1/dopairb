@@ -19,11 +19,14 @@ require_relative "dopairb/fx"
 require_relative "dopairb/stage"
 require_relative "dopairb/game"
 require_relative "dopairb/probe"
+require_relative "dopairb/profile"
+require_relative "dopairb/gallery"
 require_relative "dopairb/scene"
 require_relative "dopairb/scenes/success"
 require_relative "dopairb/scenes/failure"
 require_relative "dopairb/scenes/session"
 require_relative "dopairb/scenes/finale"
+require_relative "dopairb/scenes/bonus"
 require_relative "dopairb/director"
 require_relative "dopairb/output_tap"
 require_relative "dopairb/charge_line"
@@ -98,10 +101,32 @@ module Dopairb
       dopa party            max intensity, full-screen flash, sound effects
       dopa demo             play every effect once
       dopa loading          show the loading screen
+      dopa gallery          the bonus art you have collected (dopa gallery NAME to look at one)
       dopa KEY=VALUE ...    change one setting, e.g. `dopa flash=off duration=0.5`
 
       settings:
     TXT
+
+    def gallery(name)
+      owned = (@session&.profile&.gallery || []) + (@session&.collected || [])
+      if name.nil?
+        puts "dopairb gallery: #{owned.uniq.size}/#{Gallery::PIECES.size} (level up to unlock more)"
+        Gallery::PIECES.each do |p|
+          have = owned.include?(p.id)
+          puts format("  %-3s %-14s %s", have ? "[x]" : "[ ]", p.id, have ? "#{p.title} -- #{p.artist}, #{p.year}" : "???")
+        end
+        return
+      end
+      piece = Gallery.find(name.to_sym) if Gallery.ids.include?(name.to_sym)
+      return puts("dopairb: no such piece #{name.inspect}") unless piece
+      return puts("dopairb: not unlocked yet -- keep leveling up!") unless owned.include?(piece.id)
+      cols = [Term.cols - 1, 100].min
+      w, h = Gallery.fit(piece, cols, [Term.rows - 4, 30].min)
+      c = Canvas.new(w, h / 2)
+      Gallery.draw(c, piece, 0, 0, w, h, depth: Term.depth(config))
+      puts c.render(Term.depth(config))
+      puts "\"#{piece.title}\"  #{piece.artist}, #{piece.year}"
+    end
 
     def command(arg)
       words = arg.split
@@ -111,10 +136,20 @@ module Dopairb
         puts config.describe
         puts "  sound player: #{Sound.backend ? Sound.backend[1].first : '(none; bell only)'}   cache: #{Sound.dir}"
         puts "  session: #{s.evals} evals, #{s.successes} hits, #{s.failures} errors, max combo #{s.max_combo}, score #{Fx.number_with_commas(s.score)}" if s
+        prof = @session&.profile
+        if prof&.persistent?
+          lv = s.leveling? ? s.level : prof.level
+          xp = s.leveling? ? s.xp : prof.xp
+          puts "  career: LV #{lv} (#{Fx.number_with_commas(xp)} / #{Fx.number_with_commas(Game.xp_for(lv + 1))} XP), " \
+               "best score #{Fx.number_with_commas(prof.best_score)}, best combo #{prof.best_combo}, day streak #{prof.streak}, " \
+               "gallery #{prof.gallery.size}/#{Gallery::PIECES.size}   (#{prof.path})"
+        end
       elsif words == ["help"]
         puts HELP + config.describe
       elsif words == ["demo"]
         Demo.run(self)
+      elsif words[0] == "gallery"
+        gallery(words[1])
       elsif words == ["loading"]
         t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         @session&.director&.loading { Process.clock_gettime(Process::CLOCK_MONOTONIC) - t0 > 2.5 } if active?

@@ -66,7 +66,8 @@ class TestGame < Test::Unit::TestCase
 
   def test_typing_score_is_capped_per_eval
     2000.times { |i| @g.key(:insert, (97 + i % 26).chr); @tick.(0.01) }
-    assert_operator @g.score, :<=, 200
+    bonus = Dopairb::Game::TYPING_MILESTONES.sum { |n| n * 4 }
+    assert_operator @g.score, :<=, 200 + bonus, "the cap plus each power-of-two streak once"
   end
 
   def test_resume_after_pause
@@ -87,5 +88,67 @@ class TestGame < Test::Unit::TestCase
   def test_output_rain_flag
     assert @g.success({ type: :nil }, out_lines: 25).flag?(:output_rain)
     assert !@g.success({ type: :nil }, out_lines: 3).flag?(:output_rain)
+  end
+
+  # rand always answers r (and sample picks by it too)
+  def fixed_rng(r)
+    Object.new.tap { |o| o.define_singleton_method(:rand) { |n = nil| n ? (r * n).floor : r } }
+  end
+
+  def test_critical_and_jackpot
+    crit = Dopairb::Game.new(clock: @clock, rng: fixed_rng(0.05))
+    e = crit.success(int(1))
+    assert e.flag?(:critical)
+    assert_includes Dopairb::Game::CRIT_MULTS, e.mult
+    plain = Dopairb::Game.new(clock: @clock, rng: fixed_rng(0.99)).success(int(1))
+    assert_equal plain.gain * e.mult, e.gain
+    jp = Dopairb::Game.new(clock: @clock, rng: fixed_rng(0.001)).success(int(1))
+    assert jp.flag?(:jackpot)
+    assert_equal plain.gain * Dopairb::Game::JACKPOT_MULT, jp.gain
+  end
+
+  def test_fever_doubles_and_ends_on_error
+    g = Dopairb::Game.new(clock: @clock, rng: fixed_rng(0.99))
+    evs = 11.times.map { g.success(int(1)) }
+    assert evs[9].flag?(:fever_start)
+    assert evs[10].flag?(:fever)
+    assert !evs[8].flag?(:fever)
+    assert_equal 2, evs[10].mult
+    assert g.failure({ type: :name }).flag?(:fever_end)
+    assert !g.fever?
+  end
+
+  def test_levels_double
+    assert_equal 1, Dopairb::Game.level_for(511)
+    assert_equal 2, Dopairb::Game.level_for(512)
+    assert_equal 3, Dopairb::Game.level_for(1024)
+    assert_equal 4, Dopairb::Game.level_for(2048)
+  end
+
+  def test_level_up_only_with_a_career
+    g = Dopairb::Game.new(clock: @clock, rng: fixed_rng(0.99))
+    assert 20.times.none? { g.success(int(1)).flag?(:level_up) }
+    g = Dopairb::Game.new(clock: @clock, rng: fixed_rng(0.99))
+    g.career(xp: 500, best_combo: nil)
+    e = g.success(int(1))
+    assert e.flag?(:level_up)
+    assert_equal 2, e.level
+  end
+
+  def test_best_combo_ever
+    g = Dopairb::Game.new(clock: @clock, rng: fixed_rng(0.99))
+    g.career(xp: 0, best_combo: 6)
+    evs = 8.times.map { g.success(int(1)) }
+    assert_equal [6], evs.each_index.select { |i| evs[i].flag?(:combo_best) }
+  end
+
+  def test_power_of_two_typing_streaks
+    hits = []
+    40.times do |i|
+      r = @g.key(:insert, (97 + i % 26).chr)
+      hits << r[1] if Array === r
+      @tick.(0.05)
+    end
+    assert_equal [8, 16, 32], hits
   end
 end

@@ -111,6 +111,29 @@ module Dopairb
       width * scale
     end
 
+    # The big font squeezed into three rows with half blocks (▀ ▄ █).
+    # Returns the width drawn, or nil when the terminal lacks the glyphs.
+    def half_text(canvas, text, x, y, color_fn)
+      up = Term.glyph("▀", nil)
+      down = Term.glyph("▄", nil)
+      full = Term.glyph("█", nil)
+      return nil unless up && down && full
+      bm = Font.bitmap(text)
+      width = bm[0].size
+      3.times do |r|
+        top = bm[r * 2]
+        bot = bm[r * 2 + 1] || []
+        width.times do |cx|
+          a = top[cx]
+          b = bot[cx]
+          next unless a || b
+          ch = a && b ? full : (a ? up : down)
+          canvas.put(x + cx, y + r, ch, color_fn.(cx, r, cx.fdiv([width - 1, 1].max)))
+        end
+      end
+      width
+    end
+
     def text_fits?(text, w, scale = 1)
       Font.width(text, scale: scale) <= w
     end

@@ -9,17 +9,36 @@ module Dopairb
     COMBO_MILESTONES = [3, 5, 10, 15, 20, 30, 50, 75, 100].freeze
     COMBO_MEGA = [10, 25, 50, 100].freeze
     EVAL_MILESTONES = [10, 50, 100, 500, 1000, 5000, 10_000].freeze
+    # Typing streaks pay out at powers of two: 8, 16, 32, ... 1024.
+    TYPING_MILESTONES = (3..10).map { |n| 2**n }.freeze
+    FEVER_COMBO = 10
+    # Variable rewards: any success may crit (more likely with a full CHARGE).
+    CRIT_CHANCE = 0.10
+    CRIT_CHARGE_BONUS = 0.12
+    CRIT_MULTS = [2, 2, 2, 4, 4, 8].freeze
+    JACKPOT_CHANCE = 0.015
+    JACKPOT_MULT = 16
 
-    Event = Struct.new(:kind, :tier, :info, :flags, :gain, :combo, :streak, :score, keyword_init: true) do
+    Event = Struct.new(:kind, :tier, :info, :flags, :gain, :combo, :streak, :score, :mult, :level, keyword_init: true) do
       def flag?(f) = flags.include?(f)
     end
 
     attr_reader :score, :combo, :max_combo, :evals, :successes, :failures, :interrupts,
                 :charge, :error_streak, :record, :typing_combo, :started_at, :last_key_at,
-                :keystrokes, :best_typing, :comebacks
+                :keystrokes, :best_typing, :comebacks, :crits, :jackpots, :level, :xp_base, :best_combo_ever
 
-    def initialize(clock: -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) })
+    # XP needed for a level doubles each time: LV2 at 512, LV3 at 1024, ...
+    def self.xp_for(level) = level <= 1 ? 0 : 2**(level + 7)
+
+    def self.level_for(xp)
+      lv = 1
+      lv += 1 while xp >= xp_for(lv + 1)
+      lv
+    end
+
+    def initialize(clock: -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) }, rng: Random.new)
       @clock = clock
+      @rng = rng
       @started_at = now
       @score = 0
       @combo = 0
@@ -39,7 +58,26 @@ module Dopairb
       @typing_points = 0
       @keystrokes = 0
       @comebacks = 0
+      @crits = 0
+      @jackpots = 0
+      @xp_base = 0
+      @level = 1
+      @best_combo_ever = nil
+      @leveling = false
+      @streaks_paid = []
     end
+
+    # Career so far (from Profile): lifetime XP before this session and the best combo ever.
+    def career(xp:, best_combo:)
+      @leveling = true
+      @xp_base = xp.to_i
+      @best_combo_ever = best_combo
+      @level = Game.level_for(@xp_base + @score)
+    end
+
+    def xp = @xp_base + @score
+    def fever? = @combo >= FEVER_COMBO
+    def leveling? = @leveling
 
     def now = @clock.call
 
@@ -56,7 +94,8 @@ module Dopairb
     end
 
     # kind: :insert, :delete, :move, :bracket, :string, :block, :complete, :history, :newline, :paste
-    # Returns :resume when typing restarts after a pause, else nil.
+    # Returns :resume when typing restarts after a pause, [:streak, n] at a
+    # power-of-two typing streak, else nil.
     def key(kind, char = nil)
       t = now
       resumed = @last_key_at && t - @last_key_at > 2.0 && kind == :insert
@@ -66,6 +105,7 @@ module Dopairb
         @typing_combo = kind == :move ? 0 : 1
       end
       @best_typing = @typing_combo if @typing_combo > @best_typing
+      milestone = kind == :insert && TYPING_MILESTONES.include?(@typing_combo)
       @last_key_at = t
       @keystrokes += 1 unless kind == :paste
 
@@ -99,7 +139,14 @@ module Dopairb
         @typing_points += p
         @score += p
       end
-      resumed ? :resume : nil
+      return :resume if resumed
+      return nil unless milestone
+      # outside the per-eval typing cap, but each streak pays once per eval
+      unless @streaks_paid.include?(@typing_combo)
+        @streaks_paid << @typing_combo
+        @score += @typing_combo * 4
+      end
+      [:streak, @typing_combo]
     end
 
     def success(info, code: "", out_lines: 0)
@@ -119,6 +166,11 @@ module Dopairb
       flags << :combo_mega if COMBO_MEGA.include?(@combo)
       flags << :eval_milestone if EVAL_MILESTONES.include?(@evals)
       flags << :output_rain if out_lines >= 20
+      flags << :fever if fever?
+      flags << :fever_start if @combo == FEVER_COMBO
+      if @best_combo_ever && @best_combo_ever >= 5 && @combo == @best_combo_ever + 1
+        flags << :combo_best
+      end
 
       if (num = numeric(info))
         if @record && num > @record && num >= 100
@@ -134,12 +186,31 @@ module Dopairb
       gain += 300 if flags.include?(:new_record)
       gain += 1000 if flags.include?(:eval_milestone)
       gain += @combo * 20 if flags.include?(:combo_milestone)
+      mult = 1
+      roll = @rng.rand
+      if roll < JACKPOT_CHANCE
+        flags << :jackpot
+        mult = JACKPOT_MULT
+        @jackpots += 1
+      elsif roll < CRIT_CHANCE + CRIT_CHARGE_BONUS * @charge / CHARGE_MAX
+        flags << :critical
+        mult = CRIT_MULTS.sample(random: @rng)
+        @crits += 1
+      end
+      mult *= 2 if fever?
+      gain *= mult
       @score += gain
       @charge = 0.0
       @typing_points = 0
+      @streaks_paid.clear
+      lv = @leveling ? Game.level_for(xp) : @level
+      if lv > @level
+        flags << :level_up
+        @level = lv
+      end
 
       Event.new(kind: info[:type] == :definition ? :definition : :success, tier: nil, info: info, flags: flags,
-                gain: gain, combo: @combo, streak: streak, score: @score)
+                gain: gain, combo: @combo, streak: streak, score: @score, mult: mult, level: @level)
     end
 
     def failure(info)
@@ -150,8 +221,10 @@ module Dopairb
       @combo = 0
       @charge = 0.0
       @typing_points = 0
+      @streaks_paid.clear
       flags = []
       flags << :combo_break if broken >= 3
+      flags << :fever_end if broken >= FEVER_COMBO
       flags << :eval_milestone if EVAL_MILESTONES.include?(@evals)
       Event.new(kind: :failure, tier: nil, info: info.merge(broken_combo: broken), flags: flags, gain: 0,
                 combo: 0, streak: @error_streak, score: @score)
@@ -162,6 +235,7 @@ module Dopairb
       lost = @charge
       @charge = 0.0
       @typing_points = 0
+      @streaks_paid.clear
       Event.new(kind: :interrupt, tier: nil, info: { charge: lost }, flags: [], gain: 0, combo: @combo,
                 streak: @error_streak, score: @score)
     end
@@ -171,7 +245,7 @@ module Dopairb
     def stats
       { evals: @evals, successes: @successes, failures: @failures, interrupts: @interrupts,
         max_combo: @max_combo, score: @score, comebacks: @comebacks, keystrokes: @keystrokes, best_typing: @best_typing,
-        time: elapsed }
+        crits: @crits, jackpots: @jackpots, time: elapsed }
     end
 
     private

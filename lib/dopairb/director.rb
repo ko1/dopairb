@@ -6,7 +6,7 @@ module Dopairb
   class Director
     FPS = 40.0
 
-    attr_reader :config
+    attr_reader :config, :rng
 
     def initialize(config, rng: Random.new)
       @config = config
@@ -50,25 +50,43 @@ module Dopairb
           Scenes::Banner.new(ctx, event, text: text, palette: palette, mega: true, rainbow: rainbow, sub: sub)
         end
       end
-      if event.flag?(:comeback)
+      full = lambda { self.ctx(rows: ctx.rows, cols: ctx.w + 1).tap { |c| c.depth = ctx.depth } }
+      if event.flag?(:jackpot)
+        Scenes::Jackpot.new(ctx, event)
+      elsif event.flag?(:level_up)
+        if @config.motion && @config.level >= 2 && info[:art] && Scenes::Masterpiece.fits?(ctx.rows, ctx.w + 1)
+          Scenes::Masterpiece.new(full.(), event)
+        else
+          mega.("LEVEL UP!", Color::NEON, rainbow: true, sub: "LV #{event.level}")
+        end
+      elsif event.flag?(:comeback)
         mega.(event.streak >= 2 ? "COMEBACK!" : "FIXED!", Color::GOLD, rainbow: event.streak >= 2)
       elsif event.flag?(:eval_milestone)
         mega.("#{Fx.number_with_commas(event_evals(event))} EVALS", Color::NEON, rainbow: true)
       elsif event.flag?(:record_jump)
         mega.("NEW RECORD", Color::GOLD, rainbow: true, sub: number_text(info))
       elsif event.flag?(:combo_mega)
-        mega.("COMBO #{event.combo}!", Color::FIRE, rainbow: event.combo >= 50)
+        mega.("COMBO #{event.combo}!", Color::FIRE, rainbow: event.combo >= 50, sub: event.flag?(:fever_start) ? "FEVER TIME! ALL POINTS x2" : nil)
+      elsif event.flag?(:combo_best)
+        Scenes::Banner.new(ctx, event, text: "BEST COMBO!", palette: Color::FIRE, sub: "ALL-TIME BEST #{event.combo}")
       elsif info[:type] == :definition
         Scenes::Unlock.new(ctx, event)
       elsif event.flag?(:combo_milestone) && event.combo >= 5
         Scenes::Banner.new(ctx, event, text: "COMBO #{event.combo}", palette: Color::FIRE)
       elsif event.flag?(:first_hit)
         Scenes::Banner.new(ctx, event, text: "FIRST HIT!", palette: Color::ICE)
+      elsif event.flag?(:critical) && !counter?(event)
+        Scenes::Critical.new(ctx, event)
       elsif event.flag?(:output_rain)
         Scenes::Rain.new(ctx, event)
       else
         value_scene(event, ctx)
       end
+    end
+
+    def counter?(event)
+      v = event.info[:value]
+      %i[integer float].include?(event.info[:type]) && (v.abs >= 10_000 || event.flag?(:new_record))
     end
 
     def value_scene(event, ctx)
@@ -92,7 +110,16 @@ module Dopairb
       c.input = nil if input && input.size + 12 > c.rows
       scene = scene_for(event, c)
       play(scene)
+      encore(event, c) if Scenes::Jackpot === scene
       scene
+    end
+
+    # A jackpot that also levels up: the masterpiece is too good to fold away.
+    def encore(event, c)
+      return unless event.flag?(:level_up) && event.info[:art] && @config.motion && @config.level >= 2
+      return if Term.input_pending? || !Scenes::Masterpiece.fits?(c.rows, c.w + 1)
+      full = ctx(rows: c.rows, cols: c.w + 1).tap { |x| x.depth = c.depth }
+      play(Scenes::Masterpiece.new(full, event))
     end
 
     # Cute loading screen until ready.call is true (e.g. the intro sound exists).
@@ -105,9 +132,9 @@ module Dopairb
       raise if SystemExit === e || (SignalException === e && !(Interrupt === e))
     end
 
-    def intro
+    def intro(career = nil)
       return if @config.off? || !@config.intro
-      play(Scenes::Intro.new(ctx), force_trail: true)
+      play(Scenes::Intro.new(ctx, career), force_trail: true)
     end
 
     def outro(stats)
@@ -132,6 +159,7 @@ module Dopairb
     rescue Exception => e # rubocop:disable Lint/RescueException
       raise if SystemExit === e || (SignalException === e && !(Interrupt === e))
       # Never let an effect break the REPL; Ctrl-C during an effect just skips it.
+      Dopairb.debug(e) unless Interrupt === e
     end
 
     private

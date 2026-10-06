@@ -85,9 +85,11 @@ module Dopairb
       end
 
       # First candidate that renders one column wide on this terminal.
+      # A nil candidate means "none of the above": glyph("▀", nil) may be nil.
       def glyph(*candidates)
         @glyphs ||= {}
-        @glyphs[candidates] ||= candidates.find { |c| c.ascii_only? || (utf8? && c.each_char.all? { |ch| char_width(ch) == 1 }) } || candidates.last
+        return @glyphs[candidates] if @glyphs.key?(candidates)
+        @glyphs[candidates] = candidates.find { |c| c.nil? || c.ascii_only? || (utf8? && c.each_char.all? { |ch| char_width(ch) == 1 }) } || candidates.last
       end
 
       def reset_glyphs

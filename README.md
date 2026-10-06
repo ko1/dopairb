@@ -3,6 +3,10 @@
 An interactive Ruby shell that answers every keystroke, evaluation, result and exception with loud terminal effects.
 It is built as an IRB extension. The design spec is [spec.md](spec.md) (in Japanese).
 
+https://github.com/user-attachments/assets/b45e4a97-ffde-4fb2-be73-ef69d5c8af42
+
+A 70-second session with sound (`dopairb --max --sound`); also in [docs/dopairb-demo.mp4](docs/dopairb-demo.mp4). The scripts that recorded it are in [docs/recording](docs/recording).
+
 ```
 dopairb(main):001> (1..100).sum                     COMBO 00  SCORE 33  [⣿⣿⣀⣀⣀⣀⣀⣀] x1.5
                     ⠂⠌⠟⠃        <- sparks, afterglow and HUD on every keystroke
@@ -53,6 +57,7 @@ dopa off|low|normal|max
 dopa calm / dopa party
 dopa demo             play every effect once (does not change your score)
 dopa loading          show the loading screen
+dopa gallery          the bonus art you have collected (`dopa gallery starry_night` shows one)
 dopa flash=off duration=0.5 ...
 ```
 
@@ -80,6 +85,7 @@ When several fire at once, only the biggest plays. The smaller ones are folded i
 | Moment | Effect |
 | --- | --- |
 | Typing | A spark trail right of the cursor, a brief glow on the typed character, embers falling below, a x1.0–x3.0 multiplier |
+| Typing streak of 8, 16, 32 … 1024 keys | Powers of two, in big half-block letters under the input: `8-BIT RUSH!`, `16-BIT COMBO!`, `32-BIT BLAZE!!`, `64-BIT OVERDRIVE!!`, `128-BIT HYPER MODE!!`, `0x100 OVERFLOW!!!`, `2^9 GODSPEED!!!`, `1KiB TYPING LEGEND!!!`, with a bonus of 4 points per key |
 | Resuming after a pause | Reignites with `CHARGE!` |
 | Backspace / Delete | The deleted character shatters and falls. The next keystroke shows `RECOVERY` |
 | Cursor movement | A light streak in the direction of travel |
@@ -104,11 +110,28 @@ When several fire at once, only the biggest plays. The smaller ones are folded i
 | Other exceptions | A red flash and a glitching `FAILED` |
 | Ctrl-C | The stored charge scatters, `INTERRUPTED` |
 | First eval / COMBO 5, 10, 25… / eval count 10, 50, 100… | `FIRST HIT!` / `COMBO 10!` / `100 EVALS` |
+| Lucky success (about 1 in 10, up to 1 in 5 with a full CHARGE) | `CRITICAL!!`: a slash, a red flash and x2 / x4 / x8 points |
+| Very lucky success (1 in 67) | `JACKPOT!!`: three slot reels stop on 7-7-7, coins rain, x16 points |
+| COMBO 10 and beyond | `FEVER TIME!`: every point counts double until the next error; the HUD glows in rainbow `FEVER!` |
+| Beating your all-time best combo | `BEST COMBO!` |
+| Level up (see [Career](#career)) | `LEVEL UP!`, then a famous painting is unveiled full screen as bonus art |
 | Numeric record (more than doubled) | `NEW RECORD` |
 | Success right after an error | `FIXED!` (after one error) / `COMEBACK!` (after a streak), both huge |
 | Exit | A full-screen finale: the title drops, stats slam in one by one, the total score counts up under a drum roll, a rank is stamped (S/A/B/C with a cheerful title), then fireworks. The result is left behind as a plain table |
 
 Error effects name the kind of error. They never make fun of the failure.
+
+## Career
+
+Between sessions dopairb keeps a small profile: lifetime XP (the sum of your scores), level, best score, best combo, a day streak and the bonus art you have collected.
+Levels need powers of two: LV 2 at 512 XP, LV 3 at 1,024, LV 4 at 2,048, and so on.
+Each level-up unveils a painting: Hokusai's *The Great Wave off Kanagawa* and *Fine Wind, Clear Morning*, van Gogh's *The Starry Night*, Leonardo's *Mona Lisa* and Munch's *The Scream*, all painted procedurally in half blocks (no image files ship with the gem). New ones come first.
+The startup title shows your level and day streak, and the finale shows `NEW BEST!` and an XP bar.
+
+The profile is `~/.local/state/dopairb/profile.json` (`$XDG_STATE_HOME` is honored). Set `DOPAIRB_PROFILE=path` to use another file, or `DOPAIRB_PROFILE=off` to keep nothing; levels are then not shown.
+Non-interactive runs never touch it.
+
+`DOPAIRB_SEED=n` makes the luck (critical hits, jackpots, particles) repeatable, which helps when recording a demo.
 
 ## Sound
 

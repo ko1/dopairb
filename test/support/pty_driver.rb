@@ -21,7 +21,7 @@ class PTYDriver
     @master, slave = PTY.open
     slave.winsize = [rows, cols]
     base = { "TERM" => "xterm-256color", "COLORTERM" => "truecolor", "LANG" => "C.UTF-8", "HOME" => ENV["HOME"],
-             "NO_COLOR" => nil, "DOPAIRB" => nil, "LINES" => nil, "COLUMNS" => nil }
+             "NO_COLOR" => nil, "DOPAIRB" => nil, "DOPAIRB_PROFILE" => "off", "LINES" => nil, "COLUMNS" => nil }
     # an empty rc in a private dir keeps the user's ~/.irbrc and history out
     @dir = Dir.mktmpdir("dopairb-test")
     base["IRBRC"] = File.join(@dir, "irbrc")

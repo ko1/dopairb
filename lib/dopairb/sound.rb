@@ -181,6 +181,51 @@ module Dopairb
         [Synth.seq(sweep, chord), 0.3]
       },
       result: -> { [Synth.seq(Synth.arp([784, 988, 1175, 1568], 0.08, wave: :triangle, vol: 0.2, decay: 0.06), Synth.tone(2093, 0.4, wave: :triangle, vol: 0.18, decay: 0.2)), 0] },
+      bits: lambda {
+        up = Synth.arp([523, 659, 784, 1047, 1319, 1568, 2093], 0.035, vol: 0.13, decay: 0.03)
+        [Synth.seq(up, Synth.tone(2093, 0.18, vol: 0.1, vibrato: 0.02, decay: 0.08)), 0]
+      },
+      crit: lambda {
+        shing = Synth.tone(2400, 0.1, wave: :saw, vol: 0.12, slide_to: 5200, decay: 0.05)
+        thud = Synth.mix(Synth.noise(0.12, vol: 0.55, decay: 0.03), Synth.tone(140, 0.25, wave: :sine, vol: 0.7, slide_to: 60, decay: 0.08))
+        sting = Synth.mix(*[880, 1109, 1319].map { |f| Synth.tone(f, 0.3, wave: :square, vol: 0.06, decay: 0.12) })
+        [Synth.mix(shing, Synth.at(0.1, thud), Synth.at(0.12, sting)), 0.1]
+      },
+      jackpot: lambda {
+        r = Random.new(9)
+        buf = []
+        t = 0.0
+        while t < 0.95
+          Synth.add(buf, t, Synth.tone(700 + r.rand(500), 0.02, vol: 0.1, decay: 0.008))
+          t += 0.045
+        end
+        [0.45, 0.7, 0.95].each_with_index do |at, i|
+          Synth.add(buf, at, Synth.mix(Synth.noise(0.05, vol: 0.4, decay: 0.015, rng: r), Synth.tone(160 + i * 40, 0.15, wave: :sine, vol: 0.5, slide_to: 80, decay: 0.05)))
+          Synth.add(buf, at, Synth.tone([784, 988, 1175][i], 0.12, wave: :triangle, vol: 0.18, decay: 0.06))
+        end
+        Synth.add(buf, 0.95, Synth.boom(0.8, vol: 0.6, low: 75))
+        Synth.add(buf, 1.0, Synth.arp([1047, 1319, 1568, 2093, 1568, 2093, 2637], 0.07, vol: 0.12, decay: 0.05))
+        40.times { Synth.add(buf, 1.0 + r.rand * 1.2, Synth.tone(2600 + r.rand(1800), 0.06, wave: :sine, vol: 0.08, decay: 0.02)) }
+        [buf, 0.95]
+      },
+      levelup: lambda {
+        buf = []
+        Synth.add(buf, 0, Synth.tone(150, 0.22, wave: :saw, vol: 0.12, slide_to: 900))
+        Synth.add(buf, 0.22, Synth.boom(0.7, vol: 0.6))
+        fan = Synth.arp([523, 659, 784, 1047, 784, 1047, 1319, 1568], 0.06, vol: 0.13, decay: 0.05)
+        Synth.add(buf, 0.24, fan)
+        [1047, 1319, 1568, 2093].each { |f| Synth.add(buf, 0.72, Synth.tone(f, 0.5, vol: 0.06, vibrato: 0.015, decay: 0.3)) }
+        # the unveiling: a gong and a shimmering chord
+        Synth.add(buf, 1.0, Synth.tone(98, 1.6, wave: :sine, vol: 0.45, decay: 0.7, vibrato: 0.004))
+        Synth.add(buf, 1.0, Synth.tone(196, 1.2, wave: :triangle, vol: 0.12, decay: 0.5))
+        Synth.add(buf, 1.45, Synth.noise(0.5, vol: 0.25, decay: 0.15, smooth: 0.5))
+        [523, 659, 784, 1047, 1319].each_with_index do |f, i|
+          Synth.add(buf, 1.45 + i * 0.05, Synth.tone(f, 1.4, vol: 0.05, vibrato: 0.01, decay: 0.6))
+        end
+        r = Random.new(4)
+        16.times { Synth.add(buf, 1.6 + r.rand * 1.4, Synth.tone(3000 + r.rand(2000), 0.05, wave: :sine, vol: 0.06, decay: 0.015)) }
+        [buf, 0.22]
+      },
       finale: ->(k = 1.0) { Sound.finale(k) },
     })
 
@@ -260,7 +305,9 @@ module Dopairb
     def backend
       return @backend if defined?(@backend)
       @backend =
-        if (p = which("paplay")) && (ENV["PULSE_SERVER"] || !wsl? || File.exist?("/mnt/wslg/PulseServer"))
+        if (log = ENV["DOPAIRB_SOUND_LOG"]) && !log.empty?
+          [:log, [log]] # recordings: write "<wall clock of impact> <wav>" lines instead of playing
+        elsif (p = which("paplay")) && (ENV["PULSE_SERVER"] || !wsl? || File.exist?("/mnt/wslg/PulseServer"))
           [:fast, [p]]
         elsif (p = which("afplay"))
           [:fast, [p]]
@@ -278,7 +325,7 @@ module Dopairb
     def available? = !backend.nil?
 
     # Per-keystroke sounds only make sense with a low-latency player.
-    def fast? = backend&.first == :fast
+    def fast? = %i[fast log].include?(backend&.first)
 
     @last = {}
     @children = []
@@ -294,6 +341,7 @@ module Dopairb
       return false if @children.size >= 4
       @last[name] = now
       started = now
+      return log_play(argv[0], name, delay, stretch) if kind == :log
       Thread.new do
         Thread.current.report_on_exception = false
         path, impact = file(name, stretch)
@@ -315,6 +363,13 @@ module Dopairb
     rescue StandardError => e
       Dopairb.debug(e)
       false
+    end
+
+    def log_play(log, name, delay, stretch)
+      at = Process.clock_gettime(Process::CLOCK_REALTIME) + delay
+      path, impact = file(name, stretch)
+      File.open(log, "a") { |f| f.puts format("%.4f %s", at - impact, path) }
+      true
     end
 
     def ready?(name, stretch = 1.0) = !cached(key_for(name, stretch)).nil?
