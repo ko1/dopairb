@@ -109,6 +109,7 @@ module Dopairb
       bits << "CRITICAL x#{event.mult / (event.flag?(:fever) ? 2 : 1)}" if event.flag?(:critical)
       bits << "FEVER x2" if event.flag?(:fever) && !event.flag?(:fever_start)
       bits << "LEVEL UP LV #{event.level}" if event.flag?(:level_up)
+      bits << "ART DROP" if event.flag?(:art_drop) && !event.flag?(:level_up)
       bits << "COMBO #{event.combo}" if event.combo.to_i > 1
       bits << "NEW RECORD" if event.flag?(:new_record) && !bits.include?("NEW RECORD")
       bits << "FIRST HIT" if event.flag?(:first_hit)

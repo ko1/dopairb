@@ -18,6 +18,8 @@ module Dopairb
     CRIT_MULTS = [2, 2, 2, 4, 4, 8].freeze
     JACKPOT_CHANCE = 0.015
     JACKPOT_MULT = 16
+    # Bonus art can also just drop (careers only: the gallery lives in the profile).
+    ART_DROP_CHANCE = 0.02
 
     Event = Struct.new(:kind, :tier, :info, :flags, :gain, :combo, :streak, :score, :mult, :level, keyword_init: true) do
       def flag?(f) = flags.include?(f)
@@ -197,6 +199,7 @@ module Dopairb
         mult = CRIT_MULTS.sample(random: @rng)
         @crits += 1
       end
+      flags << :art_drop if @leveling && @rng.rand < ART_DROP_CHANCE
       mult *= 2 if fever?
       gain *= mult
       @score += gain

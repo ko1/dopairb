@@ -145,7 +145,8 @@ module Dopairb
       end
     end
 
-    # LEVEL UP: the title slams in, then a masterpiece is unveiled full screen.
+    # LEVEL UP (or a jackpot prize, or a lucky ART DROP): the title slams in,
+    # then a masterpiece is unveiled full screen.
     class Masterpiece < Scene
       LAND = 0.22
       REVEAL = 1.0
@@ -165,7 +166,12 @@ module Dopairb
       def setup
         @h = ctx.rows
         @piece = Gallery.find(event.info[:art]) || Gallery::PIECES.first
-        @title = "LEVEL UP!"
+        @level_up = event.flag?(:level_up)
+        @title = if @level_up then "LEVEL UP!"
+                 elsif event.flag?(:jackpot) then "JACKPOT PRIZE"
+                 else "ART DROP!"
+                 end
+        @title = "BONUS!" if Font.width(@title) > @w - 2
         @tscale = Font.width(@title, scale: 2) <= @w - 4 ? 2 : 1
         @aw, @ah = Gallery.fit(@piece, @w - 6, @h - 6)
         @ax = (@w - @aw) / 2
@@ -198,7 +204,8 @@ module Dopairb
       def trail
         star = Term.glyph("✦", "*")
         g = event.info[:gallery]
-        s = "#{star} LEVEL UP! LV #{event.level} #{star}  BONUS ART: #{@piece.title} (#{@piece.artist}, #{@piece.year})"
+        head = @level_up ? "LEVEL UP! LV #{event.level}" : @title
+        s = "#{star} #{head} #{star}  BONUS ART: #{@piece.title} (#{@piece.artist}, #{@piece.year})"
         s << (event.info[:art_new] ? "  NEW!" : "  ENCORE")
         s << "  GALLERY #{g[0]}/#{g[1]}" if g
         paint(s, Color.ramp(Color::NEON, 0.15), bold: true)
@@ -227,7 +234,7 @@ module Dopairb
         return if t < LAND
         c.tint_bg([200, 120, 255], 0.55 * (1 - Fx.phase(t, LAND, LAND + 0.15))) if ctx.config.flash != :off
         Fx.shockwave(c, @w / 2.0, y0 + 2.5, t - LAND, speed: 110, palette: Color::NEON, life: 0.6, rings: 3)
-        lv = "LV #{event.level - 1}  >>  LV #{event.level}"
+        lv = @level_up ? "LV #{event.level - 1}  >>  LV #{event.level}" : "A MASTERPIECE APPEARS"
         n = (lv.size * Fx.phase(t, LAND + 0.1, LAND + 0.4)).round
         c.put_center(y0 + Font::HEIGHT + 2, lv[0, n], [255, 230, 140], bold: true)
         msg = "BONUS ART UNLOCKED"
@@ -253,7 +260,8 @@ module Dopairb
           end
         end
         Fx.sparkles(c, t, 21, 18, palette: Color::GOLD, area: [@ax - 4, @ay - 1, @aw + 8, rows + 2]) if p >= 1
-        c.put_center(0, "#{Term.glyph('✦', '*')}  LEVEL #{event.level}  #{Term.glyph('✦', '*')}  BONUS ART", Color.rainbow(t * 0.7), bold: true)
+        head = @level_up ? "LEVEL #{event.level}" : @title
+        c.put_center(0, "#{Term.glyph('✦', '*')}  #{head}  #{Term.glyph('✦', '*')}  BONUS ART", Color.rainbow(t * 0.7), bold: true)
         return if t < REVEAL + 0.45
         cap = "\"#{@piece.title}\"  #{@piece.artist}, #{@piece.year}"
         n = (cap.size * Fx.phase(t, REVEAL + 0.5, REVEAL + 1.0)).round

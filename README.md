@@ -122,7 +122,7 @@ When several fire at once, only the biggest plays. The smaller ones are folded i
 | Very lucky success (1 in 67) | `JACKPOT!!`: three slot reels stop on 7-7-7, coins rain, x16 points |
 | COMBO 10 and beyond | `FEVER TIME!`: every point counts double until the next error; the HUD glows in rainbow `FEVER!` |
 | Beating your all-time best combo | `BEST COMBO!` |
-| Level up (see [Career](#career)) | `LEVEL UP!`, then a famous painting is unveiled full screen as bonus art |
+| Level up, jackpot, or a lucky drop (see [Career](#career)) | `LEVEL UP!` / `JACKPOT PRIZE` / `ART DROP!`, then a famous painting is unveiled full screen as bonus art |
 | Numeric record (more than doubled) | `NEW RECORD` |
 | Success right after an error | `FIXED!` (after one error) / `COMEBACK!` (after a streak), both huge |
 | Exit | A full-screen finale: the title drops, stats slam in one by one, the total score counts up under a drum roll, a rank is stamped (S/A/B/C with a cheerful title), then fireworks. The result is left behind as a plain table |
@@ -133,7 +133,7 @@ Error effects name the kind of error. They never make fun of the failure.
 
 Between sessions dopairb keeps a small profile: lifetime XP (the sum of your scores), level, best score, best combo, a day streak and the bonus art you have collected.
 Levels need powers of two: LV 2 at 512 XP, LV 3 at 1,024, LV 4 at 2,048, and so on.
-Each level-up unveils a painting: Hokusai's *The Great Wave off Kanagawa* and *Fine Wind, Clear Morning*, van Gogh's *The Starry Night*, Leonardo's *Mona Lisa* and Munch's *The Scream*, all painted procedurally in half blocks (no image files ship with the gem). New ones come first.
+Each level-up and each jackpot unveils a masterpiece full screen, and now and then (about 1 success in 50) one simply drops: `ART DROP!`. There are 100 public-domain works to collect, from the Lascaux horses and Hokusai's *Great Wave* through Vermeer, Turner and van Gogh to Klimt, Kandinsky and Mondrian, all painted procedurally in half blocks (no image files ship with the gem). New ones come first; `dopa gallery` lists yours. (Spoilers: all 100 are in [docs/gallery.png](docs/gallery.png).)
 The startup title shows your level and day streak, and the finale shows `NEW BEST!` and an XP bar.
 
 The profile is `~/.local/state/dopairb/profile.json` (`$XDG_STATE_HOME` is honored). Set `DOPAIRB_PROFILE=path` to use another file, or `DOPAIRB_PROFILE=off` to keep nothing; levels are then not shown.

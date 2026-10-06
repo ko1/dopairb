@@ -135,6 +135,14 @@ class TestGame < Test::Unit::TestCase
     assert_equal 2, e.level
   end
 
+  def test_art_drops_only_with_a_career
+    g = Dopairb::Game.new(clock: @clock, rng: fixed_rng(0.01))
+    assert !g.success(int(1)).flag?(:art_drop)
+    g = Dopairb::Game.new(clock: @clock, rng: fixed_rng(0.015))
+    g.career(xp: 0, best_combo: nil)
+    assert g.success(int(1)).flag?(:art_drop)
+  end
+
   def test_best_combo_ever
     g = Dopairb::Game.new(clock: @clock, rng: fixed_rng(0.99))
     g.career(xp: 0, best_combo: 6)

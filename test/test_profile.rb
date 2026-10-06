@@ -48,14 +48,25 @@ class TestProfile < Test::Unit::TestCase
     ENV["DOPAIRB_PROFILE"] = old
   end
 
+  def test_gallery_is_well_formed
+    pieces = Dopairb::Gallery::PIECES
+    assert_equal pieces.size, pieces.map(&:id).uniq.size
+    pieces.each do |p|
+      assert_include 0.5..2.6, p.aspect, p.id.to_s
+      [p.title, p.artist, p.year].each { |s| assert_kind_of String, s }
+    end
+  end
+
   def test_gallery_paints_every_piece
     Dopairb::Gallery::PIECES.each do |p|
       w, h = Dopairb::Gallery.fit(p, 60, 20)
       assert_operator w, :<=, 60
       assert_operator h, :<=, 40
+      t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       px = Dopairb::Gallery.pixels(p, w, h)
+      assert_operator Process.clock_gettime(Process::CLOCK_MONOTONIC) - t0, :<, 0.5, "#{p.id} paints fast enough"
       assert px.flatten(1).all? { |c| c.size == 3 && c.all? { |v| v.between?(0, 255) } }, p.id.to_s
-      assert_operator px.flatten(1).uniq.size, :>, 6, "#{p.id} is a picture, not a flat color"
+      assert_operator px.flatten(1).uniq.size, :>=, 3, "#{p.id} is a picture, not a flat color (Mondrian has five)"
     end
   end
 end

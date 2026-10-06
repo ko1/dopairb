@@ -114,25 +114,27 @@ module Dopairb
       dopa party            max intensity, full-screen flash, sound effects
       dopa demo             play every effect once
       dopa loading          show the loading screen
-      dopa gallery          the bonus art you have collected (dopa gallery NAME to look at one)
+      dopa gallery          the bonus art you have collected (dopa gallery NAME shows one)
       dopa KEY=VALUE ...    change one setting, e.g. `dopa flash=off duration=0.5`
 
       settings:
     TXT
 
     def gallery(name)
-      owned = (@session&.profile&.gallery || []) + (@session&.collected || [])
+      owned = ((@session&.profile&.gallery || []) + (@session&.collected || [])).uniq
       if name.nil?
-        puts "dopairb gallery: #{owned.uniq.size}/#{Gallery::PIECES.size} (level up to unlock more)"
+        puts "dopairb gallery: #{owned.size}/#{Gallery::PIECES.size}  (level-ups, jackpots and lucky ART DROPs bring more)"
         Gallery::PIECES.each do |p|
-          have = owned.include?(p.id)
-          puts format("  %-3s %-14s %s", have ? "[x]" : "[ ]", p.id, have ? "#{p.title} -- #{p.artist}, #{p.year}" : "???")
+          puts format("  %-32s %s -- %s, %s", p.id, p.title, p.artist, p.year) if owned.include?(p.id)
         end
+        rest = Gallery::PIECES.size - owned.size
+        puts "  ... #{rest} more to discover" if rest > 0
+        puts "  `dopa gallery NAME` shows one" unless owned.empty?
         return
       end
       piece = Gallery.find(name.to_sym) if Gallery.ids.include?(name.to_sym)
       return puts("dopairb: no such piece #{name.inspect}") unless piece
-      return puts("dopairb: not unlocked yet -- keep leveling up!") unless owned.include?(piece.id)
+      return puts("dopairb: not unlocked yet -- keep playing!") unless owned.include?(piece.id)
       cols = [Term.cols - 1, 100].min
       w, h = Gallery.fit(piece, cols, [Term.rows - 4, 30].min)
       c = Canvas.new(w, h / 2)

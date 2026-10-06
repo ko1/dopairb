@@ -101,7 +101,7 @@ module Dopairb
         info = Probe.value(last_value.call, code).merge(out_lines: lines)
         profile
         event = @game.success(info, code: code, out_lines: lines)
-        award_art(event) if event.flag?(:level_up)
+        award_art(event) if %i[level_up jackpot art_drop].any? { |f| event.flag?(f) } && @game.leveling?
         pre = elapsed > 0.2 || shot.nil? ? 0.0 : [@config.charge, 0.3].min
         @director.play_event(event, input: shot, pre: pre)
       else
@@ -114,7 +114,7 @@ module Dopairb
       Dopairb.debug(e)
     end
 
-    # A level-up pays out a masterpiece, a new one while any are missing.
+    # Level-ups, jackpots and lucky drops pay out a masterpiece, a new one while any are missing.
     def award_art(event)
       owned = profile.gallery + @collected
       piece = Gallery.pick(@director.rng, owned)

@@ -33,6 +33,51 @@ module Dopairb
         (a + (b - a) * sx) + ((c + (d - c) * sx) - (a + (b - a) * sx)) * sy
       end
 
+      # Smooth value noise at any scale (0..1): fbm(u * 8, v * 8) for blotches.
+      def vnoise(u, v, scale = 8.0) = fbm(u * scale, v * scale)
+
+      def hsv(h, s = 1.0, v = 1.0) = Color.hsv(h, s, v)
+
+      # 0xRRGGBB -> [r, g, b]
+      def rgb(hex) = [(hex >> 16) & 255, (hex >> 8) & 255, hex & 255]
+
+      # Gradient through evenly spaced colors, t in 0..1.
+      def ramp(t, *colors)
+        t = Fx.clamp01(t)
+        return colors.last if t >= 1
+        f = t * (colors.size - 1)
+        i = f.floor
+        mix(colors[i], colors[i + 1], f - i)
+      end
+
+      # < 1 inside the ellipse (0 at the center).
+      def ellipse(u, v, cx, cy, rx, ry) = ((u - cx) / rx)**2 + ((v - cy) / ry)**2
+
+      # Point in polygon; pts = [[u, v], ...].
+      def inside?(u, v, pts)
+        hit = false
+        j = pts.size - 1
+        pts.each_with_index do |(xi, yi), i|
+          xj, yj = pts[j]
+          hit = !hit if (yi > v) != (yj > v) && u < (xj - xi) * (v - yi) / (yj - yi + 1e-12) + xi
+          j = i
+        end
+        hit
+      end
+
+      # Brush-stroke texture in -1..1 along angle (radians), freq strokes per unit.
+      def brush(u, v, angle: 0.0, freq: 40.0, wobble: 0.3)
+        x = u * Math.cos(angle) + v * Math.sin(angle)
+        y = -u * Math.sin(angle) + v * Math.cos(angle)
+        Math.sin((y + wobble * Math.sin(x * 9 + y * 3) / freq * 6) * freq * Math::PI)
+      end
+
+      # A color with a little painterly variation.
+      def jitter(color, u, v, amount = 18, scale = 30.0)
+        k = (vnoise(u, v, scale) - 0.5) * 2 * amount
+        color.map { |c| (c + k).round.clamp(0, 255) }
+      end
+
       # Hokusai, Fine Wind, Clear Morning ("Red Fuji")
       def red_fuji(u, v)
         peak_u = 0.58
@@ -225,18 +270,23 @@ module Dopairb
       end
     end
 
-    PIECES = [
-      Piece.new(id: :great_wave, title: "The Great Wave off Kanagawa", artist: "Katsushika Hokusai", year: "c. 1831", aspect: 1.5,
-                painter: :great_wave),
-      Piece.new(id: :red_fuji, title: "Fine Wind, Clear Morning", artist: "Katsushika Hokusai", year: "c. 1831", aspect: 1.45,
-                painter: :red_fuji),
-      Piece.new(id: :starry_night, title: "The Starry Night", artist: "Vincent van Gogh", year: "1889", aspect: 1.26,
-                painter: :starry_night),
-      Piece.new(id: :mona_lisa, title: "Mona Lisa", artist: "Leonardo da Vinci", year: "c. 1503", aspect: 0.67, painter: :mona_lisa),
-      Piece.new(id: :the_scream, title: "The Scream", artist: "Edvard Munch", year: "1893", aspect: 0.8, painter: :the_scream),
-    ].freeze
+    # Filled by Gallery.piece as the files below are loaded.
+    PIECES = []
 
     module_function
+
+    # Register a painting. The block gets (u, v) and runs with Paint's helpers.
+    #   piece :the_kiss, "The Kiss", "Gustav Klimt", "1908", aspect: 1.0 do |u, v| ... end
+    def piece(id, title, artist, year, aspect:, &painter)
+      raise ArgumentError, "duplicate piece #{id}" if PIECES.any? { |p| p.id == id }
+      PIECES << Piece.new(id: id, title: title, artist: artist, year: year, aspect: aspect, painter: painter)
+    end
+
+    piece(:great_wave, "The Great Wave off Kanagawa", "Katsushika Hokusai", "c. 1831", aspect: 1.5) { |u, v| great_wave(u, v) }
+    piece(:red_fuji, "Fine Wind, Clear Morning", "Katsushika Hokusai", "c. 1831", aspect: 1.45) { |u, v| red_fuji(u, v) }
+    piece(:starry_night, "The Starry Night", "Vincent van Gogh", "1889", aspect: 1.26) { |u, v| starry_night(u, v) }
+    piece(:mona_lisa, "Mona Lisa", "Leonardo da Vinci", "c. 1503", aspect: 0.67) { |u, v| mona_lisa(u, v) }
+    piece(:the_scream, "The Scream", "Edvard Munch", "1893", aspect: 0.8) { |u, v| the_scream(u, v) }
 
     def find(id) = PIECES.find { |p| p.id == id.to_sym }
     def ids = PIECES.map(&:id)
@@ -245,7 +295,7 @@ module Dopairb
     def pixels(piece, w, h)
       @cache ||= {}
       @cache[[piece.id, w, h]] ||= Array.new(h) do |y|
-        Array.new(w) { |x| Paint.public_send(piece.painter, (x + 0.5) / w, (y + 0.5) / h) }
+        Array.new(w) { |x| Paint.instance_exec((x + 0.5) / w, (y + 0.5) / h, &piece.painter) }
       end
     end
 
@@ -295,3 +345,5 @@ module Dopairb
     end
   end
 end
+
+Dir[File.join(__dir__, "gallery", "*.rb")].sort.each { |f| require f }

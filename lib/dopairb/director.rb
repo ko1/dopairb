@@ -53,11 +53,13 @@ module Dopairb
       full = lambda { self.ctx(rows: ctx.rows, cols: ctx.w + 1).tap { |c| c.depth = ctx.depth } }
       if event.flag?(:jackpot)
         Scenes::Jackpot.new(ctx, event)
-      elsif event.flag?(:level_up)
+      elsif event.flag?(:level_up) || (event.flag?(:art_drop) && info[:art])
         if @config.motion && @config.level >= 2 && info[:art] && Scenes::Masterpiece.fits?(ctx.rows, ctx.w + 1)
           Scenes::Masterpiece.new(full.(), event)
-        else
+        elsif event.flag?(:level_up)
           mega.("LEVEL UP!", Color::NEON, rainbow: true, sub: "LV #{event.level}")
+        else
+          Scenes::Banner.new(ctx, event, text: "ART DROP!", palette: Color::GOLD, sub: Gallery.find(info[:art])&.title)
         end
       elsif event.flag?(:comeback)
         mega.(event.streak >= 2 ? "COMEBACK!" : "FIXED!", Color::GOLD, rainbow: event.streak >= 2)
@@ -114,9 +116,9 @@ module Dopairb
       scene
     end
 
-    # A jackpot that also levels up: the masterpiece is too good to fold away.
+    # A jackpot pays out a masterpiece too: too good to fold away.
     def encore(event, c)
-      return unless event.flag?(:level_up) && event.info[:art] && @config.motion && @config.level >= 2
+      return unless event.info[:art] && @config.motion && @config.level >= 2
       return if Term.input_pending? || !Scenes::Masterpiece.fits?(c.rows, c.w + 1)
       full = ctx(rows: c.rows, cols: c.w + 1).tap { |x| x.depth = c.depth }
       play(Scenes::Masterpiece.new(full, event))
