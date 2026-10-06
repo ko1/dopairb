@@ -127,10 +127,10 @@
 
 | 設定 | 内容 |
 | --- | --- |
-| `intensity` | `off` / `low` / `normal` / `max`。初期値 `max`（v0.3.1 で `normal` から変更） |
+| `intensity` | `off` / `low` / `normal` / `max`。初期値 `max`（v0.4.0 で `normal` から変更） |
 | `motion` | アニメーションの有無と長さ |
 | `flash` | 全画面フラッシュの有無。初期値は控えめ |
-| `sound` | `off` / `bell` / `sfx`。初期値 `sfx`（v0.3.1 で `off` から変更。プレイヤーがなければベル） |
+| `sound` | `off` / `bell` / `sfx`。初期値 `sfx`（v0.4.0 で `off` から変更。プレイヤーがなければベル） |
 | `hud` | COMBO・CHARGE・SCORE の表示 |
 | `duration` | 各演出時間の倍率 |
 | `color` | 色数と配色。モノクロでも意味が分かる表示 |

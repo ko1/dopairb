@@ -36,7 +36,7 @@ To try it without installing, run `ruby exe/dopairb` in the checkout.
 $ dopairb                 # start it, at full blast with sound (IRB options are passed through)
 $ dopairb --calm          # quieter: low intensity, no flash, shorter effects
 $ dopairb --party         # max + full-screen flash + sound effects
-$ dopairb --intensity=normal --no-sound   # the tamer pre-0.3.1 defaults
+$ dopairb --intensity=normal --no-sound   # the tamer pre-0.4.0 defaults
 $ dopairb --no-flash      # suppress flashing, available from the very first start
 $ DOPAIRB="intensity=low,flash=off" dopairb
 ```
