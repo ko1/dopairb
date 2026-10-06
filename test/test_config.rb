@@ -5,9 +5,9 @@ require_relative "helper"
 class TestConfig < Test::Unit::TestCase
   def test_defaults
     c = Dopairb::Config.new
-    assert_equal :normal, c.intensity
-    assert_equal :soft, c.flash
-    assert_equal :off, c.sound
+    assert_equal :max, c.intensity
+    assert_equal :soft, c.flash, "full-screen flashing stays opt-in"
+    assert_equal :sfx, c.sound
     assert_equal 1.0, c.duration
   end
 

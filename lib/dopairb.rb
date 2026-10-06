@@ -47,7 +47,10 @@ module Dopairb
     def config
       @config ||= begin
         c = Config.new
-        c.apply_string(ENV["DOPAIRB"]) if ENV["DOPAIRB"]
+        if ENV["DOPAIRB"]
+          c.apply_string(ENV["DOPAIRB"])
+          overrides << [:string, ENV["DOPAIRB"]]
+        end
         c
       rescue ArgumentError => e
         warn "dopairb: ignoring DOPAIRB=#{ENV['DOPAIRB'].inspect}: #{e.message}"
@@ -55,10 +58,20 @@ module Dopairb
       end
     end
 
+    # Settings for this run only ($DOPAIRB, dopairb options). They win over
+    # Dopairb.enable(...) in .irbrc, which IRB loads after they are applied.
+    def overrides = (@overrides ||= [])
+
+    def override(name, value)
+      name == :string ? config.apply_string(value) : config.set(name, value)
+      overrides << [name, value]
+    end
+
     # Hook into IRB. Safe to call more than once; options are config settings.
     def enable(intro: nil, **settings)
       settings.each { |k, v| config.set(k, v) }
       config.set(:intro, intro) unless intro.nil?
+      overrides.each { |k, v| k == :string ? config.apply_string(v) : config.set(k, v) }
       @session ||= Session.new(config)
       if IrbAdapter.install
         RelineAdapter.install(@session.fx)

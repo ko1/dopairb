@@ -134,7 +134,7 @@ class TestSound < Test::Unit::TestCase
 
   def test_sound_setting
     c = Dopairb::Config.new
-    assert_equal :off, c.sound
+    assert_equal :sfx, c.sound
     assert_equal :sfx, c.set(:sound, "on").sound
     assert_equal :bell, c.set(:sound, "bell").sound
     assert_equal :off, c.set(:sound, "off").sound

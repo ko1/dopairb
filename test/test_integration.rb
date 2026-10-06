@@ -190,5 +190,15 @@ class TestIntegration < Test::Unit::TestCase
     run_line("x + 1")
     assert_match(/FIRST HIT!/, @d.all_text)
   end
+
+  def test_command_line_beats_irbrc
+    dir = Dir.mktmpdir("dopairb-rc")
+    rc = File.join(dir, "irbrc")
+    File.write(rc, "require 'dopairb'\nDopairb.enable(intensity: :max)\n")
+    start("--intensity=off", env: { "IRBRC" => rc })
+    run_line("(1..10).sum")
+    assert_not_match(/COMBO|SCORE|FIRST HIT/, @d.raw_output.force_encoding(Encoding::UTF_8).scrub)
+    assert_match(/^=> 55$/, @d.all_text)
+  end
 end
 

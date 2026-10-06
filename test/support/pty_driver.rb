@@ -20,10 +20,12 @@ class PTYDriver
   def initialize(cmd, rows: 24, cols: 80, env: {})
     @master, slave = PTY.open
     slave.winsize = [rows, cols]
-    base = { "TERM" => "xterm-256color", "COLORTERM" => "truecolor", "LANG" => "C.UTF-8", "HOME" => ENV["HOME"],
-             "NO_COLOR" => nil, "DOPAIRB" => nil, "DOPAIRB_PROFILE" => "off", "LINES" => nil, "COLUMNS" => nil }
-    # an empty rc in a private dir keeps the user's ~/.irbrc and history out
+    # A private HOME and an empty rc keep the user's ~/.irbrc (IRB reads it
+    # besides $IRBRC) and history out; DOPAIRB=sound=off keeps tests silent.
     @dir = Dir.mktmpdir("dopairb-test")
+    base = { "TERM" => "xterm-256color", "COLORTERM" => "truecolor", "LANG" => "C.UTF-8", "HOME" => @dir,
+             "XDG_CONFIG_HOME" => nil, "NO_COLOR" => nil, "DOPAIRB" => "sound=off", "DOPAIRB_PROFILE" => "off",
+             "LINES" => nil, "COLUMNS" => nil }
     base["IRBRC"] = File.join(@dir, "irbrc")
     File.write(base["IRBRC"], "")
     # setsid -c makes the pty our controlling terminal so ^C raises SIGINT

@@ -5,7 +5,7 @@ It is built as an IRB extension. The design spec is [spec.md](spec.md) (in Japan
 
 https://github.com/user-attachments/assets/b45e4a97-ffde-4fb2-be73-ef69d5c8af42
 
-A 70-second session with sound (`dopairb --max --sound`); also in [docs/dopairb-demo.mp4](docs/dopairb-demo.mp4). The scripts that recorded it are in [docs/recording](docs/recording).
+A 70-second session with sound (`dopairb`, the defaults); also in [docs/dopairb-demo.mp4](docs/dopairb-demo.mp4). The scripts that recorded it are in [docs/recording](docs/recording).
 
 ```
 dopairb(main):001> (1..100).sum                     COMBO 00  SCORE 33  [⣿⣿⣀⣀⣀⣀⣀⣀] x1.5
@@ -33,11 +33,10 @@ To try it without installing, run `ruby exe/dopairb` in the checkout.
 ## Usage
 
 ```console
-$ dopairb                 # start it (IRB options are passed through)
+$ dopairb                 # start it, at full blast with sound (IRB options are passed through)
 $ dopairb --calm          # quieter: low intensity, no flash, shorter effects
-$ dopairb --max           # everything at maximum; the biggest moments go full screen
 $ dopairb --party         # max + full-screen flash + sound effects
-$ dopairb --sound         # synthesized sound effects (--sound=bell for the terminal bell)
+$ dopairb --intensity=normal --no-sound   # the tamer pre-0.3.1 defaults
 $ dopairb --no-flash      # suppress flashing, available from the very first start
 $ DOPAIRB="intensity=low,flash=off" dopairb
 ```
@@ -47,7 +46,7 @@ To turn your regular `irb` into dopairb, add this to `~/.irbrc`:
 ```ruby
 begin
   require "dopairb"
-  Dopairb.enable          # also e.g. Dopairb.enable(sound: :sfx, intensity: :max)
+  Dopairb.enable          # also e.g. Dopairb.enable(sound: :off, intensity: :normal)
 rescue LoadError
   # a Ruby without dopairb keeps plain irb
 end
@@ -55,6 +54,7 @@ end
 
 The title (and the loading screen on a cold start) plays right before the first prompt, as with the `dopairb` command.
 Sessions opened by `binding.irb` get the effects too; `Dopairb.enable(binding_irb: false)` keeps them plain.
+Settings for a single run (`dopairb` options and `$DOPAIRB`) win over the ones given to `Dopairb.enable` in `.irbrc`.
 
 Inside a session, the `dopa` command changes settings:
 
@@ -72,10 +72,10 @@ dopa flash=off duration=0.5 ...
 
 | Setting | Values | Default | Meaning |
 | --- | --- | --- | --- |
-| `intensity` | off / low / normal / max | normal | Overall amount. `off` behaves exactly like plain IRB |
+| `intensity` | off / low / normal / max | max | Overall amount. `off` behaves exactly like plain IRB |
 | `motion` | on / off | on | `off` disables animation (badges only) |
 | `flash` | off / soft / full | soft | `soft` flashes only the effect area, `full` inverts the whole screen |
-| `sound` | off / bell / sfx | off | `sfx` plays synthesized sound effects, `bell` rings the terminal bell on big moments |
+| `sound` | off / bell / sfx | sfx | `sfx` plays synthesized sound effects, `bell` rings the terminal bell on big moments |
 | `hud` | on / off | on | COMBO / SCORE / CHARGE on the right of the prompt line |
 | `duration` | 0.1–5 | 1.0 | Length multiplier for every effect |
 | `color` | auto / truecolor / 256 / 16 / none | auto | `none` when `NO_COLOR` is set |

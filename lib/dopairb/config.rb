@@ -27,10 +27,10 @@ module Dopairb
     attr_reader :intensity, :motion, :flash, :sound, :hud, :duration, :color, :trail, :charge, :intro, :keys, :binding_irb
 
     def initialize
-      @intensity = :normal
+      @intensity = :max
       @motion = true
       @flash = :soft
-      @sound = :off
+      @sound = :sfx
       @hud = true
       @duration = 1.0
       @color = :auto

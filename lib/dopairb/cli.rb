@@ -15,13 +15,13 @@ module Dopairb
         o.separator ""
         o.separator "IRB with fireworks. Every other option is handed to IRB."
         o.separator ""
-        o.on("--intensity=LEVEL", Config::INTENSITIES.map(&:to_s), "off / low / normal (default) / max") { |v| settings << [:intensity, v] }
+        o.on("--intensity=LEVEL", Config::INTENSITIES.map(&:to_s), "off / low / normal / max (default)") { |v| settings << [:intensity, v] }
         o.on("--calm", "low intensity, no flash, shorter effects") { settings.concat([[:intensity, :low], [:flash, :off], [:duration, 0.7]]) }
-        o.on("--max", "everything at maximum") { settings << [:intensity, :max] }
+        o.on("--max", "everything at maximum (the default)") { settings << [:intensity, :max] }
         o.on("--party", "max + full-screen flash + sound effects") { settings.concat([[:intensity, :max], [:flash, :full], [:sound, :sfx]]) }
         o.on("--[no-]flash[=MODE]", "flash: off / soft (default) / full") { |v| settings << [:flash, v.nil? ? :soft : (v == false ? :off : v)] }
         o.on("--[no-]motion", "animations (default on)") { |v| settings << [:motion, v] }
-        o.on("--[no-]sound[=MODE]", "sound: off (default) / bell / sfx") { |v| settings << [:sound, v.nil? ? :sfx : (v == false ? :off : v)] }
+        o.on("--[no-]sound[=MODE]", "sound: off / bell / sfx (default)") { |v| settings << [:sound, v.nil? ? :sfx : (v == false ? :off : v)] }
         o.on("--[no-]hud", "COMBO / SCORE next to the prompt (default on)") { |v| settings << [:hud, v] }
         o.on("--[no-]keys", "per-keystroke effects (default on)") { |v| settings << [:keys, v] }
         o.on("--[no-]intro", "title animation (default on)") { |v| settings << [:intro, v] }
@@ -61,9 +61,7 @@ module Dopairb
       ours, irb_args = split_args(argv.dup)
       settings = []
       parser(settings).parse!(ours)
-      settings.each do |k, v|
-        k == :string ? Dopairb.config.apply_string(v) : Dopairb.config.set(k, v)
-      end
+      settings.each { |k, v| Dopairb.override(k, v) }
       run_irb(irb_args)
     rescue OptionParser::ParseError, ArgumentError => e
       warn "dopairb: #{e.message}"
