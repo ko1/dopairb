@@ -200,5 +200,20 @@ class TestIntegration < Test::Unit::TestCase
     assert_not_match(/COMBO|SCORE|FIRST HIT/, @d.raw_output.force_encoding(Encoding::UTF_8).scrub)
     assert_match(/^=> 55$/, @d.all_text)
   end
+
+  def test_gallery_tour
+    start
+    @d.type("dopa gallery tour", delay: 0.01)
+    @d.send_keys("\r")
+    @d.wait_for(/DOPA IRB GALLERY.*1 \/ #{Dopairb::Gallery::PIECES.size}/, timeout: 10)
+    assert_match(/\? \? \?   \(by Katsushika Hokusai\)/, @d.text, "uncollected pieces are silhouettes")
+    @d.send_keys("\e[C")
+    @d.wait_for(%r{2 / #{Dopairb::Gallery::PIECES.size}}, timeout: 5)
+    @d.send_keys("\e[D")
+    @d.wait_for(%r{  1 / #{Dopairb::Gallery::PIECES.size}}, timeout: 5)
+    @d.send_keys("q")
+    @d.wait_for(/\(main\):002>/, timeout: 5)
+    assert_not_match(/DOPA IRB GALLERY/, @d.text, "the alternate screen is gone")
+  end
 end
 

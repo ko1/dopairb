@@ -65,6 +65,7 @@ dopa calm / dopa party
 dopa demo             play every effect once (does not change your score)
 dopa loading          show the loading screen
 dopa gallery          the bonus art you have collected (`dopa gallery starry_night` shows one)
+dopa gallery tour     a full-screen slideshow of all 100; uncollected ones appear as silhouettes
 dopa flash=off duration=0.5 ...
 ```
 

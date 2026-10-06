@@ -36,6 +36,7 @@ require_relative "dopairb/reline_adapter"
 require_relative "dopairb/irb_adapter"
 require_relative "dopairb/session"
 require_relative "dopairb/demo"
+require_relative "dopairb/tour"
 
 # dopairb: IRB where every keystroke, result and exception gets a show.
 #
@@ -115,6 +116,7 @@ module Dopairb
       dopa demo             play every effect once
       dopa loading          show the loading screen
       dopa gallery          the bonus art you have collected (dopa gallery NAME shows one)
+      dopa gallery tour     a slideshow of all 100 (uncollected ones as silhouettes)
       dopa KEY=VALUE ...    change one setting, e.g. `dopa flash=off duration=0.5`
 
       settings:
@@ -122,6 +124,10 @@ module Dopairb
 
     def gallery(name)
       owned = ((@session&.profile&.gallery || []) + (@session&.collected || [])).uniq
+      if name == "tour"
+        return puts("dopairb: the tour needs a terminal") unless Term.interactive?
+        return Tour.run(config, owned)
+      end
       if name.nil?
         puts "dopairb gallery: #{owned.size}/#{Gallery::PIECES.size}  (level-ups, jackpots and lucky ART DROPs bring more)"
         Gallery::PIECES.each do |p|
@@ -129,7 +135,7 @@ module Dopairb
         end
         rest = Gallery::PIECES.size - owned.size
         puts "  ... #{rest} more to discover" if rest > 0
-        puts "  `dopa gallery NAME` shows one" unless owned.empty?
+        puts "  `dopa gallery NAME` shows one; `dopa gallery tour` walks through all #{Gallery::PIECES.size}"
         return
       end
       piece = Gallery.find(name.to_sym) if Gallery.ids.include?(name.to_sym)
