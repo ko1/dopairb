@@ -3,9 +3,9 @@
 An interactive Ruby shell that answers every keystroke, evaluation, result and exception with loud terminal effects.
 It is built as an IRB extension. The design spec is [spec.md](spec.md) (in Japanese).
 
-https://github.com/user-attachments/assets/b45e4a97-ffde-4fb2-be73-ef69d5c8af42
+https://github.com/user-attachments/assets/98b037e1-5a30-4abd-812d-233a60ab2de4
 
-A 70-second session with sound (`dopairb`, the defaults); also in [docs/dopairb-demo.mp4](docs/dopairb-demo.mp4). The scripts that recorded it are in [docs/recording](docs/recording).
+A 72-second promo with sound and English/Japanese subtitles: plain irb, then `dopa on`, the setup, and "Happy dopa Ruby!". The scripts that record dopairb sessions like this one are in [docs/recording](docs/recording).
 
 ```
 dopairb(main):001> (1..100).sum                     COMBO 00  SCORE 33  [⣿⣿⣀⣀⣀⣀⣀⣀] x1.5
