@@ -1,0 +1,84 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# dopacc: dopairb's show on top of Claude Code.
+require_relative "../lib/dopairb/claude_code"
+
+CC = Dopairb::ClaudeCode
+
+def settings_path(args)
+  if (a = args.find { |x| x.start_with?("--settings=") })
+    a.delete_prefix("--settings=")
+  elsif args.include?("--project")
+    File.join(Dir.pwd, ".claude", "settings.local.json")
+  else
+    File.join(ENV["CLAUDE_CONFIG_DIR"] || File.expand_path("~/.claude"), "settings.json")
+  end
+end
+
+USAGE = <<~TXT
+  Usage: dopacc COMMAND
+
+    install [--project] [--no-statusline]  add the hooks to Claude Code's settings
+                                           (~/.claude/settings.json, or ./.claude/settings.local.json)
+    uninstall [--project]                  remove them again
+    on | calm | off                        full show / sounds only / nothing
+    status                                 mode, combo and score
+    demo [TEXT]                            try the full-screen banner (run it as `! dopacc demo` in Claude Code)
+    hook                                   (called by Claude Code with the hook JSON on stdin)
+    statusline                             (called by Claude Code for the status line)
+TXT
+
+cmd, *args = ARGV
+case cmd
+when "hook"
+  # Never get in Claude Code's way: whatever happens, exit 0 quietly.
+  begin
+    plan = CC::Hook.run($stdin.read)
+    if ENV["DOPACC_DRY"]
+      puts JSON.generate(plan)
+    else
+      plan.each do |e|
+        if e[:show]
+          CC::Screen.show(e[:show], sub: e[:sub], palette: e[:palette], sound: e[:sound])
+        elsif e[:sound]
+          CC::Screen.play(e[:sound])
+        end
+      end
+    end
+  rescue StandardError, LoadError => e
+    warn "dopacc: #{e.class}: #{e.message}" if ENV["DOPACC_DEBUG"]
+  end
+  exit 0
+when "statusline"
+  $stdin.read unless $stdin.tty?
+  print CC.statusline
+when *CC::MODES
+  CC::State.update { |s| s["mode"] = cmd }
+  puts "dopacc: #{cmd}"
+when "status"
+  s = CC::State.read
+  puts "mode #{s["mode"]}  combo #{s["combo"]}  best #{s["best"]}  score #{CC::Hook.commas(s["score"])}  tools #{s["tools"]}"
+  puts "hooks #{CC::Installer.installed?(settings_path(args)) ? "installed" : "not installed"} (#{settings_path(args)})"
+when "install"
+  path = settings_path(args)
+  notes = CC::Installer.install(path, statusline: !args.include?("--no-statusline"))
+  puts "dopacc: hooks added to #{path}"
+  notes.each { |n| puts "  #{n}" }
+  puts "  restart Claude Code (or open /hooks) to start the show; `dopacc off` to pause it"
+when "uninstall"
+  path = settings_path(args)
+  CC::Installer.uninstall(path)
+  puts "dopacc: hooks removed from #{path}"
+when "demo"
+  shown = CC::Screen.show(args.empty? ? "DOPA CLAUDE!" : args.join(" "), sub: "dopacc demo")
+  warn "dopacc: no terminal found (run it from inside Claude Code: ! dopacc demo)" unless shown
+when nil, "-h", "--help", "help"
+  puts USAGE
+when "--version"
+  require_relative "../lib/dopairb/version"
+  puts "dopacc (dopairb #{Dopairb::VERSION})"
+else
+  warn USAGE
+  exit 2
+end

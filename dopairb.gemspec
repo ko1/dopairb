@@ -17,7 +17,7 @@ Gem::Specification.new do |spec|
 
   spec.files = Dir["lib/**/*.rb", "exe/*", "README.md", "LICENSE", "spec.md"]
   spec.bindir = "exe"
-  spec.executables = ["dopairb"]
+  spec.executables = ["dopairb", "dopacc"]
   spec.require_paths = ["lib"]
 
   spec.add_dependency "irb", ">= 1.14", "< 2"

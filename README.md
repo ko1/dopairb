@@ -166,6 +166,35 @@ PowerShell takes a few hundred milliseconds to start, so with it only the result
 When no player is found, `sfx` falls back to the terminal bell on big moments.
 Sound plays on the machine that runs dopairb, so over ssh you will not hear it.
 
+## Claude Code (dopacc)
+
+The gem also ships `dopacc`, which puts the show on top of [Claude Code](https://claude.com/claude-code):
+
+```
+gem install dopairb
+dopacc install        # adds hooks + a status line to ~/.claude/settings.json
+```
+
+Then restart Claude Code. From then on:
+
+- Every successful tool call adds to the COMBO with a chime. At 10 and above it is FEVER (x2 score).
+- At COMBO 8, 16, 32, ... a full-screen `COMBO 16!` banner with fireworks takes over the screen for two seconds.
+- A tool call has a 1/64 chance of a `JACKPOT!!` (x16).
+- A failed tool call breaks the combo with a crack.
+- When Claude finishes a turn that used tools, a full-screen `MISSION COMPLETE!` shows the turn's tools, score, combo and best.
+- The status line shows `COMBO / SCORE / BEST` (an existing `statusLine` is left alone).
+
+```
+dopacc off / calm / on   # nothing / sounds only / everything (inside Claude Code: ! dopacc off)
+dopacc status
+dopacc demo              # ! dopacc demo inside Claude Code shows a banner right away
+dopacc uninstall
+```
+
+`dopacc install --project` writes to `./.claude/settings.local.json` instead. `DOPACC=off` in the environment silences it too.
+
+How it works: Claude Code owns the terminal and its hooks run without one. So a hook walks up the process tree to Claude Code's tty, draws the banner on it, and then has Claude Code repaint. With the fullscreen TUI (`"tui": "fullscreen"`), it draws over Claude Code's screen and makes it lay itself out again by narrowing the window by one column for a moment. With the classic TUI, it draws on the alternate screen and switches back. Progress is kept in `~/.local/state/dopairb/dopacc.json`. Hooks never fail: whatever happens, they exit 0 silently (`DOPACC_DEBUG=1` prints errors).
+
 ## Readable, never broken
 
 - IRB evaluates and prints as usual. `=> value`, exception messages and backtraces come from IRB itself.
