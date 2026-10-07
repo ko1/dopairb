@@ -6,6 +6,8 @@ module Dopairb
   class Session
     attr_reader :config, :game, :director, :fx, :collected
     attr_accessor :cold_start
+    # Hooked into IRB but not playing: `require "dopairb"` without enable.
+    attr_accessor :dormant
 
     def initialize(config)
       @config = config
@@ -31,7 +33,7 @@ module Dopairb
     end
 
     def active?
-      !@config.off? && Term.interactive? && (@config.binding_irb || !IrbAdapter.from_binding?)
+      !@dormant && !@config.off? && Term.interactive? && (@config.binding_irb || !IrbAdapter.from_binding?)
     end
 
     # Once per process: from the dopairb command before IRB starts, or for

@@ -68,24 +68,44 @@ module Dopairb
       overrides << [name, value]
     end
 
-    # Hook into IRB. Safe to call more than once; options are config settings.
+    # Hook into IRB and switch the show on. Safe to call more than once;
+    # options are config settings.
     def enable(intro: nil, **settings)
       settings.each { |k, v| config.set(k, v) }
       config.set(:intro, intro) unless intro.nil?
       overrides.each { |k, v| k == :string ? config.apply_string(v) : config.set(k, v) }
-      @session ||= Session.new(config)
-      if IrbAdapter.install
-        RelineAdapter.install(@session.fx)
-        OutputTap.install
-        if active?
-          # decided before warming up: the first run shows the loading screen
-          @session.cold_start = Sound.available? && !Sound.ready?(:intro, config.duration)
-          Sound.warm_up(config.duration)
-        end
+      if hook
+        wake
       else
         warn "dopairb: IRB #{defined?(IRB::VERSION) ? IRB::VERSION : '?'} is not supported; running plain IRB"
       end
       @session
+    end
+
+    # Just add the `dopa` command; the show stays dormant until `dopa on` or
+    # Dopairb.enable. This is what a bare `require "dopairb"` inside IRB does.
+    def install
+      hook
+      @session
+    end
+
+    def hook
+      @session ||= Session.new(config)
+      return false unless IrbAdapter.install
+      RelineAdapter.install(@session.fx)
+      OutputTap.install
+      true
+    end
+
+    # Out of dormancy (into whatever the intensity says).
+    def wake
+      return unless @session
+      was = @session.dormant
+      @session.dormant = false
+      return unless active?
+      # decided before warming up: the first run shows the loading screen
+      @session.cold_start = Sound.available? && !Sound.ready?(:intro, config.duration) if was || @session.cold_start.nil?
+      Sound.warm_up(config.duration)
     end
 
     def active?
@@ -110,7 +130,7 @@ module Dopairb
 
     HELP = <<~TXT
       dopa                  show settings and session stats
-      dopa on / dopa off    switch effects on (back to where they were) or off
+      dopa on / dopa off    switch the show on (back to where it was) or off
       dopa off|low|normal|max
       dopa calm             low intensity, no flash, shorter
       dopa party            max intensity, full-screen flash, sound effects
@@ -154,7 +174,11 @@ module Dopairb
       words = arg.split
       if words.empty? || words == ["status"]
         s = @session&.game
-        puts "dopairb #{VERSION}  (#{active? ? 'active' : 'inactive: not a terminal or intensity=off'})"
+        state = if active? then "active"
+                elsif @session&.dormant then "dormant: `dopa on` to start the show"
+                else "inactive: not a terminal or intensity=off"
+                end
+        puts "dopairb #{VERSION}  (#{state})"
         puts config.describe
         puts "  sound player: #{Sound.backend ? Sound.backend[1].first : '(none; bell only)'}   cache: #{Sound.dir}"
         puts "  session: #{s.evals} evals, #{s.successes} hits, #{s.failures} errors, max combo #{s.max_combo}, score #{Fx.number_with_commas(s.score)}" if s
@@ -177,7 +201,7 @@ module Dopairb
         @session&.director&.loading { Process.clock_gettime(Process::CLOCK_MONOTONIC) - t0 > 2.5 } if active?
       elsif words == ["on"]
         config.set(:intensity, @resume_intensity || Config.new.intensity) if config.off?
-        Sound.warm_up(config.duration) if active?
+        wake
         puts "dopairb: on (#{config.intensity})"
       elsif words.size == 1 && PRESETS.key?(words[0])
         @resume_intensity = config.intensity if words[0] == "off" && !config.off?
@@ -200,3 +224,6 @@ module Dopairb
     end
   end
 end
+
+# Required from inside IRB (e.g. .irbrc): add the `dopa` command, nothing else yet.
+Dopairb.install.dormant = true if defined?(IRB.conf) && IRB.conf[:AP_NAME] && !Dopairb.session

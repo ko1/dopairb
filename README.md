@@ -45,28 +45,23 @@ To turn your regular `irb` into dopairb, add this to `~/.irbrc`:
 
 ```ruby
 begin
-  require "dopairb"
-  Dopairb.enable          # also e.g. Dopairb.enable(sound: :off, intensity: :normal)
+  require "dopairb"   # adds the `dopa` command; `dopa on` starts the show
+  Dopairb.enable      # ...or start with the show on (e.g. Dopairb.enable(sound: :off))
 rescue LoadError
   # a Ruby without dopairb keeps plain irb
 end
 ```
 
+With only the `require`, irb stays plain until you type `dopa on`.
 The title (and the loading screen on a cold start) plays right before the first prompt, as with the `dopairb` command.
 Sessions opened by `binding.irb` get the effects too; `Dopairb.enable(binding_irb: false)` keeps them plain.
 Settings for a single run (`dopairb` options and `$DOPAIRB`) win over the ones given to `Dopairb.enable` in `.irbrc`.
-
-To keep `irb` plain until you ask for the show, start it switched off; only the `dopa` command is added, and `dopa on` lights everything up (the title plays at the next prompt):
-
-```ruby
-Dopairb.enable(intensity: :off)
-```
 
 Inside a session, the `dopa` command changes settings:
 
 ```
 dopa                  show settings and session stats
-dopa on / dopa off    switch effects on (back to the last level) or off
+dopa on / dopa off    switch the show on (back to the last level) or off
 dopa off|low|normal|max
 dopa calm / dopa party
 dopa demo             play every effect once (does not change your score)
@@ -141,7 +136,10 @@ Error effects name the kind of error. They never make fun of the failure.
 
 Between sessions dopairb keeps a small profile: lifetime XP (the sum of your scores), level, best score, best combo, a day streak and the bonus art you have collected.
 Levels need powers of two: LV 2 at 512 XP, LV 3 at 1,024, LV 4 at 2,048, and so on.
-Each level-up and each jackpot unveils a masterpiece full screen, and now and then (about 1 success in 50) one simply drops: `ART DROP!`. There are 100 public-domain works to collect, from the Lascaux horses and Hokusai's *Great Wave* through Vermeer, Turner and van Gogh to Klimt, Kandinsky and Mondrian, all painted procedurally in half blocks (no image files ship with the gem). New ones come first; `dopa gallery` lists yours. (Spoilers: all 100 are in [docs/gallery.png](docs/gallery.png).)
+Each level-up and each jackpot unveils a masterpiece full screen, and now and then (about 1 success in 50) one simply drops: `ART DROP!`. There are 100 public-domain works to collect, from the Lascaux horses and Hokusai's *Great Wave* through Vermeer, Turner and van Gogh to Klimt, Kandinsky and Mondrian, all painted procedurally in half blocks (no image files ship with the gem). New ones come first; `dopa gallery` lists yours.
+
+![100 frames, five of them filled](docs/gallery-teaser.png)
+
 The startup title shows your level and day streak, and the finale shows `NEW BEST!` and an XP bar.
 
 The profile is `~/.local/state/dopairb/profile.json` (`$XDG_STATE_HOME` is honored). Set `DOPAIRB_PROFILE=path` to use another file, or `DOPAIRB_PROFILE=off` to keep nothing; levels are then not shown.
