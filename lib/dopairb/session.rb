@@ -35,11 +35,11 @@ module Dopairb
     end
 
     # Once per process: from the dopairb command before IRB starts, or for
-    # `Dopairb.enable` in .irbrc right before the first prompt.
+    # `Dopairb.enable` in .irbrc right before the first prompt -- or, when it
+    # starts switched off, before the first prompt after `dopa on`.
     def intro
-      return if @introduced
+      return if @introduced || !active?
       @introduced = true
-      return unless active?
       prof = profile
       grew = prof.visit
       prof.save if grew

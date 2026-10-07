@@ -56,10 +56,17 @@ The title (and the loading screen on a cold start) plays right before the first 
 Sessions opened by `binding.irb` get the effects too; `Dopairb.enable(binding_irb: false)` keeps them plain.
 Settings for a single run (`dopairb` options and `$DOPAIRB`) win over the ones given to `Dopairb.enable` in `.irbrc`.
 
+To keep `irb` plain until you ask for the show, start it switched off; only the `dopa` command is added, and `dopa on` lights everything up (the title plays at the next prompt):
+
+```ruby
+Dopairb.enable(intensity: :off)
+```
+
 Inside a session, the `dopa` command changes settings:
 
 ```
 dopa                  show settings and session stats
+dopa on / dopa off    switch effects on (back to the last level) or off
 dopa off|low|normal|max
 dopa calm / dopa party
 dopa demo             play every effect once (does not change your score)

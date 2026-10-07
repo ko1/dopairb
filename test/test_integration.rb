@@ -215,5 +215,19 @@ class TestIntegration < Test::Unit::TestCase
     @d.wait_for(/\(main\):002>/, timeout: 5)
     assert_not_match(/DOPA IRB GALLERY/, @d.text, "the alternate screen is gone")
   end
+
+  def test_irbrc_can_start_off_and_dopa_on_lights_it_up
+    start_irbrc("Dopairb.enable(intensity: :off)")
+    run_line("1 + 1")
+    assert_not_match(/DOPA IRB|FIRST HIT|COMBO/, @d.raw_output.force_encoding(Encoding::UTF_8).scrub)
+    run_line("dopa on")
+    assert_match(/dopairb: on \(max\)/, @d.all_text)
+    @d.wait_for(/DOPA IRB #{Regexp.escape(Dopairb::VERSION)}/, timeout: 10, all: true)
+    run_line("2 + 2")
+    assert_match(/FIRST HIT!/, @d.all_text)
+    run_line("dopa off")
+    run_line("dopa on")
+    assert_match(/dopairb: on \(max\)/, @d.all_text.lines.last(3).join)
+  end
 end
 

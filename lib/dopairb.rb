@@ -110,6 +110,7 @@ module Dopairb
 
     HELP = <<~TXT
       dopa                  show settings and session stats
+      dopa on / dopa off    switch effects on (back to where they were) or off
       dopa off|low|normal|max
       dopa calm             low intensity, no flash, shorter
       dopa party            max intensity, full-screen flash, sound effects
@@ -174,7 +175,12 @@ module Dopairb
       elsif words == ["loading"]
         t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         @session&.director&.loading { Process.clock_gettime(Process::CLOCK_MONOTONIC) - t0 > 2.5 } if active?
+      elsif words == ["on"]
+        config.set(:intensity, @resume_intensity || Config.new.intensity) if config.off?
+        Sound.warm_up(config.duration) if active?
+        puts "dopairb: on (#{config.intensity})"
       elsif words.size == 1 && PRESETS.key?(words[0])
+        @resume_intensity = config.intensity if words[0] == "off" && !config.off?
         PRESETS[words[0]].each { |k, v| config.set(k, v) }
         Sound.warm_up(config.duration) if active?
         puts "dopairb: #{words[0]}"
