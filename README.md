@@ -170,6 +170,8 @@ Sound plays on the machine that runs dopairb, so over ssh you will not hear it.
 
 The gem also ships `dopacc`, which puts the show on top of [Claude Code](https://claude.com/claude-code):
 
+https://github.com/user-attachments/assets/458acc90-72ba-4a81-a352-082cde2096d5
+
 ```
 gem install dopairb
 dopacc install        # adds hooks + a status line to ~/.claude/settings.json
